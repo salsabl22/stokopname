@@ -21,7 +21,11 @@ import { unitBisnisMiddleware } from './middleware/unitBisnisMiddleware';
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+app.set('trust proxy', 1);   // ← tambahkan baris ini di sini
+
+app.use(cors({
+  origin: ['https://jawarastokopname.onrender.com', 'http://localhost:5173']
+}));
 app.use(express.json());
 
 // Serve uploaded files as static (foto retur, pengembalian, dll)

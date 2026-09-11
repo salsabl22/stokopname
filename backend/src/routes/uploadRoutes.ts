@@ -72,7 +72,7 @@ router.post('/foto-retur/:returId', uploadRetur.single('foto'), async (req: Requ
       },
     });
 
-    res.status(201).json({ ...foto, url: `http://localhost:${process.env.PORT || 3000}/${filePath}` });
+    res.status(201).json({ ...foto, url: `${req.protocol}://${req.get('host')}/${filePath}` });
   } catch (e: any) {
     console.error('[UPLOAD] foto-retur error:', e);
     res.status(500).json({ message: e.message });
@@ -102,7 +102,7 @@ router.post('/foto-pengembalian/:exceptionLogId', uploadPengembalian.single('fot
       },
     });
 
-    res.status(201).json({ ...foto, url: `http://localhost:${process.env.PORT || 3000}/${filePath}` });
+    res.status(201).json({ ...foto, url: `${req.protocol}://${req.get('host')}/${filePath}` });
   } catch (e: any) {
     console.error('[UPLOAD] foto-pengembalian error:', e);
     res.status(500).json({ message: e.message });
@@ -118,7 +118,7 @@ router.get('/foto-retur/:returId', async (req: Request, res: Response) => {
     });
     res.json(fotos.map((f: any) => ({
       ...f,
-      url: `http://localhost:${process.env.PORT || 3000}/${f.filePath}`,
+      url: `${req.protocol}://${req.get('host')}/${f.filePath}`,
     })));
   } catch (e: any) {
     res.status(500).json({ message: e.message });
