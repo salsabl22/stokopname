@@ -1,0 +1,52 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc && npm run copy:generated",
+    "copy:generated": "node -e \"const fs=require('fs');fs.cpSync('src/generated','dist/generated',{recursive:true})\"",
+    "start": "node dist/index.js",
+    "prisma:generate": "npm run prisma:generate:fotosnaps && npm run prisma:generate:keripik",
+    "prisma:generate:fotosnaps": "prisma generate --schema=prisma-fotosnaps/schema.prisma",
+    "prisma:generate:keripik": "prisma generate --schema=prisma-keripik/schema.prisma",
+    "prisma:migrate:fotosnaps": "prisma migrate dev --schema=prisma-fotosnaps/schema.prisma --name init",
+    "prisma:migrate:keripik": "prisma migrate dev --schema=prisma-keripik/schema.prisma --name init",
+    "prisma:migrate": "npm run prisma:migrate:fotosnaps && npm run prisma:migrate:keripik",
+    "seed:fotosnaps": "tsx prisma-fotosnaps/seed.ts",
+    "seed:keripik": "tsx prisma-keripik/seed.ts",
+    "seed": "npm run seed:fotosnaps && npm run seed:keripik"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@prisma/client": "^5.11.0",
+    "@types/multer": "^2.2.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.4.0",
+    "prisma": "^5.11.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  },
+  "allowScripts": {
+    "@prisma/client@5.11.0": true,
+    "@prisma/engines@5.11.0": true,
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true,
+    "prisma@5.11.0": true
+  }
+}

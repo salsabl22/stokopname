@@ -1,0 +1,58 @@
+import { useLocation } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
+import { NAV_GROUPS } from './Sidebar';
+import { resolveBreadcrumb } from '../../utils/breadcrumb';
+import { useAuth } from '../../contexts/AuthContext';
+import { useBusinessUnit } from '../../contexts/BusinessUnitContext';
+
+export default function Header() {
+  const location = useLocation();
+  const breadcrumb = resolveBreadcrumb(location.pathname, NAV_GROUPS);
+  const { user, logout } = useAuth();
+  const { activeUnitInfo } = useBusinessUnit();
+
+  // Resolve user role label
+  const roleLabel = (() => {
+    const role = (user as any)?.role;
+    if (typeof role === 'string') return role === 'ADMIN_MASTER' ? 'Administrator' : role;
+    if (role?.name) return role.name;
+    return 'Staf';
+  })();
+
+  return (
+    <header className="h-14 shrink-0 bg-white border-b border-surface-border flex items-center justify-between pl-14 lg:pl-6 pr-4 lg:pr-6 sticky top-0 z-10">
+      <div className="leading-tight">
+        {breadcrumb.group && (
+          <p className="text-[11px] text-slate-400 hidden sm:block">{breadcrumb.group}</p>
+        )}
+        <h1 className="text-sm font-semibold text-slate-800">{breadcrumb.label}</h1>
+      </div>
+
+      {/* Business Unit Badge */}
+      <div className="hidden sm:flex items-center gap-2">
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${activeUnitInfo.bgColor} ${activeUnitInfo.color}`}>
+          {activeUnitInfo.label}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2.5 pl-4 border-l border-surface-border">
+          <div className="w-8 h-8 rounded-full bg-brand-600 text-white text-xs font-semibold flex items-center justify-center uppercase">
+            {user?.name ? user.name.substring(0, 2) : 'U'}
+          </div>
+          <div className="leading-tight">
+            <p className="text-xs font-medium text-slate-800">{user?.name || 'Guest'}</p>
+            <p className="text-[11px] text-slate-400">{roleLabel}</p>
+          </div>
+          <button
+            onClick={logout}
+            className="ml-2 text-slate-400 hover:text-red-500 transition-colors"
+            title="Logout"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}

@@ -1,0 +1,42 @@
+node_modules/
+dist/
+dist-ssr/
+build/
+*.local
+
+# env
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# vite
+*.tsbuildinfo
+
+# backend/src used to have no outDir configured, so `tsc` compiled each
+# file in place and those .js/.d.ts outputs got committed alongside the
+# .ts source (fixed 2026-09-11 — see backend/tsconfig.json). generated/
+# (Prisma Client output) is intentionally excluded from this pattern, it's
+# expected to be tracked.
+backend/src/**/*.js
+backend/src/**/*.js.map
+backend/src/**/*.d.ts
+backend/src/**/*.d.ts.map
+!backend/src/generated/**
+
+# Same issue for the two Prisma seed scripts — run directly via `tsx
+# prisma-*/seed.ts` (see backend/package.json's seed:* scripts), the
+# compiled .js next to them was stray output nothing actually used.
+backend/prisma-fotosnaps/seed.js
+backend/prisma-fotosnaps/seed.js.map
+backend/prisma-keripik/seed.js
+backend/prisma-keripik/seed.js.map

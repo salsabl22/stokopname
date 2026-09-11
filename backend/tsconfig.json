@@ -1,0 +1,54 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    // File Layout
+    // Left commented out (never actually enabled) in the original scaffold
+    // — "npm run build" (tsc) was compiling each .ts file in place next to
+    // its source instead of into dist/, while "npm start" expects
+    // dist/index.js. Needed a real `include` too once rootDir is set: with
+    // no outDir/rootDir, tsc's default file set already spanned the whole
+    // project, and prisma-fotosnaps/seed.ts + prisma-keripik/seed.ts (run
+    // independently via `tsx`, never meant to be part of this build) live
+    // outside src/ — rootDir requires every compiled file to be under it.
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // Environment Settings
+    // See also https://aka.ms/tsconfig/module
+    "module": "node16",
+    "moduleResolution": "node16",
+    "target": "es2020",
+    "types": [],
+    // For nodejs:
+    // "lib": ["esnext"],
+    // "types": ["node"],
+    // and npm install -D @types/node
+
+    // Other Outputs
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Style Options
+    // "noImplicitReturns": true,
+    // "noImplicitOverride": true,
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true,
+    // "noFallthroughCasesInSwitch": true,
+    // "noPropertyAccessFromIndexSignature": true,
+
+    // Recommended Options
+    "strict": true,
+    "jsx": "react-jsx",
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["prisma-legacy-sqlite-backup", "dist", "node_modules"]
+}

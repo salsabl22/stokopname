@@ -1,0 +1,618 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL_FOTOSNAPS")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/fotosnaps-client"
+}
+
+// ==========================================
+// FLOW MAP 1 - ADMIN & AKSES
+// ==========================================
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique // "ADMIN_MASTER" | "USER"
+  description String?
+  users       User[]
+  permissions Permission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  modul     String   // "penerimaan" | "picking" | "packing" | "laporan" | "semua" | dll.
+  lihat     Boolean  @default(false)
+  buat      Boolean  @default(false)
+  ubah      Boolean  @default(false)
+  hapus     Boolean  @default(false)
+  proses    Boolean  @default(false)
+  setujui   Boolean  @default(false)
+  export    Boolean  @default(false)
+
+  @@unique([roleId, modul])
+}
+
+// Override permission per-user (tambahan/pembatasan di luar role)
+model UserPermission {
+  id      String  @id @default(uuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modul   String
+  lihat   Boolean @default(false)
+  buat    Boolean @default(false)
+  ubah    Boolean @default(false)
+  hapus   Boolean @default(false)
+  proses  Boolean @default(false)
+  setujui Boolean @default(false)
+  export  Boolean @default(false)
+
+  @@unique([userId, modul])
+}
+
+model User {
+  id              String           @id @default(uuid())
+  username        String           @unique
+  name            String
+  password        String
+  roleId          String?
+  role            Role?            @relation(fields: [roleId], references: [id])
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  tasks           Task[]
+  activities      ActivityLog[]
+  userPermissions UserPermission[]
+}
+
+// ==========================================
+// FLOW MAP 2 - DATA MASTER
+// ==========================================
+
+model SatuanBarang {
+  id        String   @id @default(uuid())
+  kode      String   @unique // "PCS" | "BAL" | "BOX" | "KARTON"
+  nama      String
+  deskripsi String?
+  isActive  Boolean  @default(true)
+
+  produkDasar Produk[] @relation("SatuanDasar")
+  produkBeli  Produk[] @relation("SatuanBeli")
+
+  konversiBesar KonversiSatuan[] @relation("KonversiBesar")
+  konversiKecil KonversiSatuan[] @relation("KonversiKecil")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KonversiSatuan {
+  id              String       @id @default(uuid())
+  produkId        String?
+  produk          Produk?      @relation(fields: [produkId], references: [id], onDelete: Cascade)
+  satuanBesarId   String
+  satuanBesar     SatuanBarang @relation("KonversiBesar", fields: [satuanBesarId], references: [id])
+  satuanKecilId   String
+  satuanKecil     SatuanBarang @relation("KonversiKecil", fields: [satuanKecilId], references: [id])
+  nilaiKonversi   Float        // 1 satuanBesar = X satuanKecil
+
+  createdAt DateTime @default(now())
+
+  @@unique([produkId, satuanBesarId, satuanKecilId])
+}
+
+model Produk {
+  id                String   @id @default(uuid())
+  kodeProduk        String   @unique
+  namaProduk        String
+  kategori          String
+  unitBisnis        String   @default("FOTOSNAPS") // "FOTOSNAPS" | "KERIPIK_BUJANGAN"
+
+  satuanId          String?
+  satuan            SatuanBarang? @relation("SatuanDasar", fields: [satuanId], references: [id])
+
+  satuanPembelianId String?
+  satuanPembelian   SatuanBarang? @relation("SatuanBeli", fields: [satuanPembelianId], references: [id])
+
+  konversi          Float    @default(1) // backward compat: 1 satuanBeli = X satuanDasar
+  minimumStok       Float    @default(0)
+  trackBatch        Boolean  @default(false) // apakah produk perlu tracking batch/lot
+  status            String   @default("aktif") // "aktif" | "nonaktif"
+  deskripsi         String?  // deskripsi opsional
+  hargaBeli         Float?   // harga beli per satuan dasar
+
+  konversiSatuan    KonversiSatuan[]
+  batches           Batch[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  inventoryItems    Inventory[]
+  poItems           POItem[]
+  soItems           SOItem[]
+  stockMovements    StockMovement[]
+  packingResults    PackingResult[]
+  wasteItems        Waste[]
+  exceptionLogs     ExceptionLog[]
+}
+
+// ==========================================
+// BATCH / LOT TRACKING
+// ==========================================
+
+model Batch {
+  id                  String    @id @default(uuid())
+  nomorBatch          String    // Nomor lot/batch dari supplier
+  produkId            String
+  produk              Produk    @relation(fields: [produkId], references: [id], onDelete: Cascade)
+  tanggalProduksi     DateTime?
+  tanggalKedaluwarsa  DateTime? // Untuk FEFO sorting
+  jumlahAwal          Float     @default(0)
+  jumlahSisa          Float     @default(0)
+  status              String    @default("aktif") // "aktif" | "habis" | "expired" | "karantina"
+  referensiPO         String?   // Nomor PO asal
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  inventoryItems      Inventory[]
+  poItems             POItem[]
+  returItems          ReturItem[]
+  wasteItems          Waste[]
+
+  @@unique([nomorBatch, produkId])
+}
+
+model Pemasok {
+  id        String   @id @default(uuid())
+  kode      String   @unique
+  nama      String
+  kontak    String?
+  telepon   String?
+  email     String?
+  alamat    String?
+  status    String   @default("aktif")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+}
+
+model Cabang {
+  id        String   @id @default(uuid())
+  kode      String   @unique
+  nama      String
+  tipe      String   @default("CABANG")
+  telepon   String?
+  alamat    String?
+  pic       String?    // Person in charge
+  status    String   @default("aktif")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salesOrders SalesOrder[]
+  returns     Retur[]
+}
+
+// --- Topologi Gudang ---
+
+model Gudang {
+  id        String   @id @default(uuid())
+  kode      String   @unique
+  nama      String
+  alamat    String?
+  status    String   @default("aktif")
+  raks      Rak[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Rak {
+  id        String   @id @default(uuid())
+  kode      String
+  gudangId  String
+  gudang    Gudang   @relation(fields: [gudangId], references: [id], onDelete: Cascade)
+  lokasis   Lokasi[]
+  status    String   @default("aktif")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([gudangId, kode])
+}
+
+model Lokasi {
+  id        String   @id @default(uuid())
+  kode      String
+  tipe      String   // "PICKING" | "RESERVE" | "RECEIVING"
+  rakId     String
+  rak       Rak      @relation(fields: [rakId], references: [id], onDelete: Cascade)
+  kapasitas Float?   // maksimum kapasitas lokasi
+  status    String   @default("aktif")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inventoryItems Inventory[]
+  wasteItems     Waste[]
+
+  @@unique([rakId, kode])
+}
+
+// ==========================================
+// FLOW MAP 2 - BARANG MASUK (INBOUND)
+// ==========================================
+
+model PurchaseOrder {
+  id                    String    @id @default(uuid())
+  nomorPO               String    @unique
+  tanggal               DateTime  @default(now())
+  tanggalTargetKedatangan DateTime?
+  pemasokId             String
+  pemasok               Pemasok   @relation(fields: [pemasokId], references: [id])
+  totalPesanan          Float     @default(0)
+  status                String    @default("draft")
+  // "draft" | "diajukan" | "disetujui" | "dikirim" | "sebagian_diterima" | "selesai" | "pengecualian"
+
+  // QC Fields (embedded for simplicity)
+  barangSesuai          Boolean?
+  jumlahSesuai          Boolean?
+  catatanSelisih        String?
+  hasilQC               String?   // "baik" | "rusak" | "ditolak"
+  perluRepack           Boolean?
+  catatanQC             String?
+  lokasiPenyimpanan     String?
+
+  // Nomor dokumen turunan (generated)
+  nomorPenerimaan       String?   // RCV-YYYYMMDD-NNN
+  nomorQC               String?   // QC-YYYYMMDD-NNN
+  nomorPutaway          String?   // PUT-YYYYMMDD-NNN
+
+  items                 POItem[]
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model POItem {
+  id               String        @id @default(uuid())
+  poId             String
+  po               PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  produkId         String
+  produk           Produk        @relation(fields: [produkId], references: [id])
+  satuan           String
+  jumlahPesan      Float
+  jumlahDiterima   Float?
+  hargaSatuan      Float
+
+  // Batch tracking saat penerimaan
+  batchId          String?
+  batch            Batch?        @relation(fields: [batchId], references: [id])
+  tanggalProduksi  DateTime?
+  tanggalKedaluwarsa DateTime?
+
+  createdAt        DateTime      @default(now())
+}
+
+// ==========================================
+// FLOW MAP 3 - PERSEDIAAN & OPERASIONAL
+// ==========================================
+
+model Inventory {
+  id                  String    @id @default(uuid())
+  produkId            String
+  produk              Produk    @relation(fields: [produkId], references: [id])
+  lokasiId            String?
+  lokasi              Lokasi?   @relation(fields: [lokasiId], references: [id])
+
+  // Batch tracking per inventory slot (FEFO support)
+  batchId             String?
+  batch               Batch?    @relation(fields: [batchId], references: [id])
+
+  // Stok breakdown
+  jumlahTersedia      Float     @default(0)  // Available (bisa diambil)
+  jumlahDialokasikan  Float     @default(0)  // Reserved untuk SO
+  jumlahKarantina     Float     @default(0)  // Quarantine
+  jumlahWaste         Float     @default(0)  // Waste
+  // ON HAND = jumlahTersedia + jumlahDialokasikan + jumlahKarantina
+
+  minimumStok         Float     @default(0)
+  updatedAt           DateTime  @updatedAt
+}
+
+model SalesOrder {
+  id          String     @id @default(uuid())
+  nomorSO     String     @unique
+  tanggal     DateTime   @default(now())
+  deadline    DateTime?  // Kapan pesanan harus dikirim
+  cabangId    String
+  cabang      Cabang     @relation(fields: [cabangId], references: [id])
+  status      String     @default("draft")
+  // "draft" | "dikonfirmasi" | "dialokasikan" | "picking" | "packing" | "dikirim" | "selesai"
+  prioritas   String     @default("NORMAL") // "RENDAH" | "NORMAL" | "TINGGI"
+  catatan     String?
+
+  // Nomor dokumen turunan
+  nomorPicking  String?  // PKG-YYYYMMDD-NNN
+  nomorPacking  String?  // PCK-YYYYMMDD-NNN
+
+  items       SOItem[]
+  shipments   Shipment[]
+  returns     Retur[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model SOItem {
+  id            String      @id @default(uuid())
+  soId          String
+  so            SalesOrder  @relation(fields: [soId], references: [id], onDelete: Cascade)
+  produkId      String
+  produk        Produk      @relation(fields: [produkId], references: [id])
+  satuan        String
+  jumlahPesan   Float
+  jumlahAlokasi Float       @default(0)
+  jumlahPick    Float       @default(0)
+
+  packingResult PackingResult?
+
+  createdAt     DateTime    @default(now())
+}
+
+model PackingResult {
+  id            String      @id @default(uuid())
+  soItemId      String      @unique
+  soItem        SOItem      @relation(fields: [soItemId], references: [id], onDelete: Cascade)
+  produkId      String
+  produk        Produk      @relation(fields: [produkId], references: [id])
+  nomorPacking  String?     // PCK-YYYYMMDD-NNN
+  jumlahAwal    Float
+  satuanAwal    String      @default("PCS")
+  satuanKemasan String      // "BOX" | "KARTON" | dll.
+  jumlahKemasan Float
+  satuanSisa    String      @default("PCS")
+  sisaJumlah    Float
+  petugasId     String?     // User yang melakukan packing
+  waktuMulai    DateTime?
+  waktuSelesai  DateTime?
+  status        String      @default("SELESAI")
+  createdAt     DateTime    @default(now())
+}
+
+model StockMovement {
+  id            String    @id @default(uuid())
+  produkId      String
+  produk        Produk    @relation(fields: [produkId], references: [id])
+  tipe          String    // "MASUK" | "KELUAR" | "PINDAH" | "ADJUSTMENT" | "WASTE" | "RETUR"
+  jumlah        Float
+  keterangan    String?
+  referensi     String?   // Nomor PO/SO/Retur dll
+  nomorDokumen  String?   // Nomor dokumen otomatis
+  lokasiAsal    String?
+  lokasiTujuan  String?
+  batchId       String?   // Batch yang terdampak
+  userId        String?   // Petugas
+  createdAt     DateTime  @default(now())
+}
+
+model Shipment {
+  id                  String      @id @default(uuid())
+  nomorSJ             String      @unique  // SHP-YYYYMMDD-NNN
+  soId                String
+  so                  SalesOrder  @relation(fields: [soId], references: [id])
+  metodePengiriman    String?
+  tanggalPengiriman   DateTime?
+  estimasiTiba        DateTime?
+  tanggalAktualTiba   DateTime?
+  keteranganPengiriman String?
+  status              String      @default("siap_kirim")
+  // "siap_kirim" | "dalam_perjalanan" | "tiba" | "selesai"
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+}
+
+// ==========================================
+// FLOW MAP 4 - RETUR
+// ==========================================
+
+model Retur {
+  id                   String      @id @default(uuid())
+  nomorRetur           String      @unique  // RTN-YYYYMMDD-NNN
+  soId                 String?
+  so                   SalesOrder? @relation(fields: [soId], references: [id])
+  cabangId             String?
+  cabang               Cabang?     @relation(fields: [cabangId], references: [id])
+  poId                 String?     // untuk retur internal (barang ditolak QC) ke pemasok
+  alasan               String
+  status               String      @default("diajukan")
+  // "diajukan" | "diterima" | "diperiksa" | "kembali_ke_stok" | "karantina" | "waste"
+  kondisi              String?     // "good" | "rusak" | "tidak_layak"
+  catatan              String?
+  tanggalPengajuan     DateTime    @default(now())
+  tanggalPersetujuan   DateTime?
+  tanggalPenerimaan    DateTime?
+  tanggalPemeriksaan   DateTime?
+  tanggalKeputusan     DateTime?
+  items                ReturItem[]
+  fotos                FotoRetur[]
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+}
+
+model FotoRetur {
+  id          String   @id @default(uuid())
+  returId     String
+  retur       Retur    @relation(fields: [returId], references: [id], onDelete: Cascade)
+  filePath    String   // Relative path: uploads/retur/filename.jpg
+  fileName    String
+  mimeType    String   @default("image/jpeg")
+  ukuranBytes Int?
+  keterangan  String?  // Catatan kondisi barang pada foto ini
+  timestamp   DateTime @default(now()) // Waktu foto diambil/diupload
+  uploadedBy  String?  // userId petugas
+  createdAt   DateTime @default(now())
+}
+
+model ReturItem {
+  id        String   @id @default(uuid())
+  returId   String
+  retur     Retur    @relation(fields: [returId], references: [id], onDelete: Cascade)
+  produkId  String
+  satuan    String
+  jumlah    Float
+  batchId   String?
+  batch     Batch?   @relation(fields: [batchId], references: [id])
+  kondisi   String?  // "good" | "rusak" | "tidak_layak"
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// FLOW MAP 5 - PENGENDALIAN & PENGECUALIAN
+// ==========================================
+
+model CycleCount {
+  id          String          @id @default(uuid())
+  nomorCC     String          @unique // CC-YYYYMMDD-NNN
+  tanggal     DateTime        @default(now())
+  gudangId    String
+  petugasId   String?         // User yang melakukan count
+  status      String          @default("draft")
+  // "draft" | "sedang_dihitung" | "selesai" | "disetujui"
+  items       CycleCountItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model CycleCountItem {
+  id            String     @id @default(uuid())
+  cycleCountId  String
+  cycleCount    CycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
+  produkId      String
+  lokasiId      String?
+  satuan        String     @default("PCS")
+  stokSistem    Float
+  stokFisik     Float      @default(0)
+  selisih       Float      @default(0)
+  alasan        String?
+  createdAt     DateTime   @default(now())
+}
+
+model StockAdjustment {
+  id            String    @id @default(uuid())
+  nomorADJ      String    @unique  // ADJ-YYYYMMDD-NNN
+  produkId      String
+  lokasiId      String?
+  jumlahLama    Float
+  jumlahBaru    Float
+  selisih       Float
+  alasan        String
+  status        String    @default("menunggu")
+  // "menunggu" | "disetujui" | "ditolak"
+  pengajuId     String?   // User yang mengajukan
+  penyetujuId   String?   // User yang menyetujui
+  tanggalSetuju DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model ExceptionLog {
+  id          String                   @id @default(uuid())
+  nomorEXC    String?                  // EXC-YYYYMMDD-NNN
+  tipe        String                   // "PENGEMBALIAN_PEMASOK" | "BARCODE_TIDAK_DIKENAL" | "JUMLAH_KURANG" | dll
+  referensi   String?                  // Nomor PO/SO
+  pemasokId   String?                  // ID pemasok yang terkait
+  produkId    String?
+  produk      Produk?                  @relation(fields: [produkId], references: [id])
+  keterangan  String
+  alasanPengembalian String?           // Khusus pengembalian ke pemasok
+  status      String                   @default("pending") // "pending" | "resolved"
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  fotos       FotoPengembalianPemasok[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+}
+
+model FotoPengembalianPemasok {
+  id             String       @id @default(uuid())
+  exceptionLogId String
+  exceptionLog   ExceptionLog @relation(fields: [exceptionLogId], references: [id], onDelete: Cascade)
+  filePath       String       // Relative path: uploads/pengembalian/filename.jpg
+  fileName       String
+  mimeType       String       @default("image/jpeg")
+  ukuranBytes    Int?
+  keterangan     String?      // Catatan kondisi barang
+  timestamp      DateTime     @default(now())
+  uploadedBy     String?      // userId petugas
+  createdAt      DateTime     @default(now())
+}
+
+model Waste {
+  id          String    @id @default(uuid())
+  nomorWaste  String?   // WST-YYYYMMDD-NNN
+  produkId    String
+  produk      Produk    @relation(fields: [produkId], references: [id])
+  batchId     String?
+  batch       Batch?    @relation(fields: [batchId], references: [id])
+  lokasiId    String?
+  lokasi      Lokasi?   @relation(fields: [lokasiId], references: [id])
+  jumlah      Float
+  satuan      String    @default("PCS")
+  alasan      String
+  referensi   String?
+  petugasId   String?   // User yang mencatat
+  approval    String    @default("auto") // "auto" | "menunggu" | "disetujui"
+  createdAt   DateTime  @default(now())
+}
+
+// ==========================================
+// FLOW MAP 7 - TUGAS & NOTIFIKASI
+// ==========================================
+
+model Task {
+  id          String    @id @default(uuid())
+  nomorTugas  String    @unique  // TSK-YYYYMMDD-NNN (auto-generated)
+  jenis       String    // "PENERIMAAN" | "PENYIMPANAN" | "PICKING" | "PACKING" | "PERHITUNGAN_STOK" | "PERSETUJUAN"
+  referensiId String?   // ID PO/SO dll
+  deskripsi   String
+  prioritas   String    @default("NORMAL") // "RENDAH" | "NORMAL" | "TINGGI"
+  assignedTo  String?   // user id
+  user        User?     @relation(fields: [assignedTo], references: [id])
+  status      String    @default("MENUNGGU")
+  // "MENUNGGU" | "DITUGASKAN" | "DIKERJAKAN" | "SELESAI" | "TERLAMBAT"
+  deadline    DateTime?
+  waktuMulai  DateTime?
+  waktuSelesai DateTime?
+  catatan     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String?
+  judul     String
+  pesan     String
+  tipe      String    // "TUGAS_BARU" | "STOK_RENDAH" | "EXCEPTION" | "RETUR_MASUK" | "APPROVAL" | "DEADLINE"
+  referensiId String? // ID dokumen terkait
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
+
+model ActivityLog {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  aksi          String    // "CREATE" | "UPDATE" | "DELETE" | "APPROVE" | "PROSES"
+  modul         String    // "PO" | "RECEIVING" | "PACKING" | "WASTE" | dll.
+  referensiId   String?
+  nomorDokumen  String?
+  detail        String?
+  dataSebelum   String?   // JSON string
+  dataSesudah   String?   // JSON string
+  ipAddress     String?
+  createdAt     DateTime  @default(now())
+}
