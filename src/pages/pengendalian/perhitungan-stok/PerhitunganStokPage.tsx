@@ -65,9 +65,9 @@ export default function PerhitunganStokPage() {
     showToast('success', 'Tugas perhitungan stok dibuat.');
   }
 
-  async function handleHitungSubmit(jumlahFisik: number) {
+  async function handleHitungSubmit(jumlahFisik: number, jumlahSistemTerkini: number) {
     if (!hitungTarget) return;
-    const result = await inputHasilHitung(hitungTarget.id, jumlahFisik);
+    const result = await inputHasilHitung(hitungTarget.id, jumlahFisik, jumlahSistemTerkini);
     await loadData();
     if (result.adaSelisih) {
       showToast('error', `${result.nomor} ditemukan selisih, perlu investigasi.`);
@@ -139,6 +139,7 @@ export default function PerhitunganStokPage() {
               <thead>
                 <tr className="text-[11px] uppercase tracking-wide text-slate-400 border-b border-surface-border">
                   <th className="px-4 py-2.5 font-medium">Nomor</th>
+                  <th className="px-4 py-2.5 font-medium">Tanggal</th>
                   <th className="px-4 py-2.5 font-medium">Produk</th>
                   <th className="px-4 py-2.5 font-medium">Sistem</th>
                   <th className="px-4 py-2.5 font-medium">Fisik</th>
@@ -151,6 +152,9 @@ export default function PerhitunganStokPage() {
                 {filteredData.map((p) => (
                   <tr key={p.id} className="border-b border-surface-border last:border-0 hover:bg-slate-50/60">
                     <td className="px-4 py-2.5 text-xs font-medium text-slate-800">{p.nomor}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-600">
+                      {new Date(p.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
                     <td className="px-4 py-2.5 text-xs text-slate-600">{p.produkNama}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-600">{p.jumlahSistem} {p.satuan}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-600">

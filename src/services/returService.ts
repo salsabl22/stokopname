@@ -72,7 +72,7 @@ export async function createRetur(
     const produk = produkList.find((p) => p.id === it.produkId);
     return {
       produkId: it.produkId,
-      satuan: produk?.satuan?.kode ?? produk?.satuanPembelian?.kode ?? 'PCS',
+      satuan: (it as any).satuan || 'PCS',
       jumlah: Number(it.jumlah),
     };
   });

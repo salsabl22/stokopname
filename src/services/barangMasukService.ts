@@ -37,7 +37,9 @@ function mapPO(po: any): PesananPembelian {
       produkId: it.produkId,
       produkKode: it.produk?.kodeProduk ?? '-',
       produkNama: it.produk?.namaProduk ?? '-',
-      satuan: it.satuan,
+      // Prioritaskan satuan yang tersimpan di item PO (yang di-input user),
+      // fallback ke satuan produk jika kosong.
+      satuan: it.satuan || it.produk?.satuan?.kode || it.produk?.satuan?.nama || 'PCS',
       jumlahPesan: it.jumlahPesan,
       hargaSatuan: it.hargaSatuan,
       jumlahDiterima: it.jumlahDiterima ?? undefined,
@@ -76,7 +78,8 @@ export async function createPesananPembelian(
     const produk = produkList.find((p) => p.id === it.produkId)!;
     return {
       produkId: produk.id,
-      satuan: produk.satuan?.kode ?? produk.satuanPembelian?.kode ?? '',
+      // Gunakan satuan yang dipilih user di form, fallback ke satuan produk
+      satuan: it.satuan || produk.satuan?.kode || produk.satuanPembelian?.kode || 'PCS',
       jumlahPesan: Number(it.jumlah),
       hargaSatuan: Number(it.hargaSatuan),
     };

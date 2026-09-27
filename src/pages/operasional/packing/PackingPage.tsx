@@ -17,9 +17,6 @@ export default function PackingPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedPesanan, setSelectedPesanan] = useState<PesananCabang | null>(null);
-
   const { toasts, showToast, dismissToast } = useToast();
 
   async function loadData() {
@@ -53,19 +50,12 @@ export default function PackingPage() {
     [data, searchTerm],
   );
 
-  function handleBukaModal(p: PesananCabang) {
-    setSelectedPesanan(p);
-    setModalOpen(true);
-  }
-
-  async function handleSimpanPacking(packingResults: any) {
-    if (!selectedPesanan) return;
+  async function handleLangsungPacking(p: PesananCabang) {
     try {
-      await simpanHasilPacking(selectedPesanan.id, packingResults);
+      // Simulate packing directly
+      await simpanHasilPacking(p.id, []);
       await loadData();
-      showToast('success', `${selectedPesanan.nomorPesanan} selesai di-packing, siap dikirim.`);
-      setModalOpen(false);
-      setSelectedPesanan(null);
+      showToast('success', `${p.nomorPesanan} selesai di-packing, lanjut ke tahap pengiriman.`);
     } catch (e: any) {
       showToast('error', e.message || 'Gagal menyimpan hasil packing.');
     }
@@ -122,7 +112,7 @@ export default function PackingPage() {
                       <button
                         type="button"
                         className="btn-primary"
-                        onClick={() => handleBukaModal(p)}
+                        onClick={() => handleLangsungPacking(p)}
                       >
                         Scan & Siapkan Barang
                       </button>
@@ -134,14 +124,6 @@ export default function PackingPage() {
           </div>
         )}
       </div>
-
-      <PackingModal
-        open={modalOpen}
-        pesanan={selectedPesanan}
-        produkList={produkList}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleSimpanPacking}
-      />
     </div>
   );
 }

@@ -12,7 +12,6 @@ interface QCFormModalProps {
 const QC_OPTIONS: { value: HasilQC; label: string; tone: string }[] = [
   { value: 'baik', label: 'Baik', tone: 'border-status-success text-status-success bg-status-successBg' },
   { value: 'rusak', label: 'Rusak', tone: 'border-status-danger text-status-danger bg-status-dangerBg' },
-  { value: 'ditolak', label: 'Ditolak', tone: 'border-status-danger text-status-danger bg-status-dangerBg' },
 ];
 
 export default function QCFormModal({ open, po, onClose, onSubmit }: QCFormModalProps) {
@@ -74,7 +73,7 @@ export default function QCFormModal({ open, po, onClose, onSubmit }: QCFormModal
 
         <div>
           <label className="label-field">Hasil QC</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {QC_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -125,12 +124,7 @@ export default function QCFormModal({ open, po, onClose, onSubmit }: QCFormModal
 
         {hasilQC === 'rusak' && (
           <p className="text-[11px] text-status-danger bg-status-dangerBg rounded-md px-3 py-2">
-            Barang akan dipindahkan ke status Karantina.
-          </p>
-        )}
-        {hasilQC === 'ditolak' && (
-          <p className="text-[11px] text-status-danger bg-status-dangerBg rounded-md px-3 py-2">
-            Barang akan diproses sebagai Retur / Pengembalian ke supplier.
+            Barang rusak akan otomatis dicatat ke <strong>Pengembalian ke Supplier</strong>.
           </p>
         )}
 

@@ -3,6 +3,8 @@ import type { PerhitunganStok } from '../types/perhitunganStok';
 import { storage, delay } from './storage';
 import { tambahStokManual, fetchStokByProduk } from './persediaanService';
 import { createTask, completeTaskByRef } from './taskService';
+import { fetchAllPO } from './barangMasukService';
+import { fetchAllPesananCabang } from './pesananCabangService';
 
 function genId(): string {
   return `so${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -67,12 +69,22 @@ export async function createTugasPerhitungan(
 // ---------------------------------------------------------------
 // TAHAP 2: Input Hasil Hitung Fisik
 // ---------------------------------------------------------------
-export async function inputHasilHitung(id: string, jumlahFisik: number): Promise<PerhitunganStok> {
+export async function inputHasilHitung(
+  id: string,
+  jumlahFisik: number,
+  jumlahSistemTerkini?: number,
+): Promise<PerhitunganStok> {
   const list = storage.getOpname();
   const target = list.find((item) => item.id === id);
   if (!target) throw new Error('Data perhitungan stok tidak ditemukan.');
 
-  const selisih = jumlahFisik - target.jumlahSistem;
+  // Jika ada nilai stok terkini (real-time dari API), gunakan itu.
+  // Ini memastikan selisih dihitung terhadap stok BERSIH saat ini,
+  // bukan snapshot lama yang dicatat saat tugas dibuat.
+  const jumlahSistemAcuan =
+    jumlahSistemTerkini !== undefined ? jumlahSistemTerkini : target.jumlahSistem;
+
+  const selisih = jumlahFisik - jumlahSistemAcuan;
   const adaSelisih = selisih !== 0;
   const now = new Date().toISOString();
 
@@ -85,6 +97,7 @@ export async function inputHasilHitung(id: string, jumlahFisik: number): Promise
 
   const updated: PerhitunganStok = {
     ...target,
+    jumlahSistem: jumlahSistemAcuan, // simpan nilai terkini agar tabel konsisten
     jumlahFisik,
     selisih,
     adaSelisih,
@@ -185,14 +198,44 @@ export async function submitPersetujuan(
 // ---------------------------------------------------------------
 // ALIAS UNTUK KOMPATIBILITAS (Existing Pages)
 // ---------------------------------------------------------------
+
+export async function hitungStokSistemRealtime(produkId: string): Promise<number> {
+  const pos = await fetchAllPO();
+  let totalMasuk = 0;
+  for (const po of pos) {
+    if (['disimpan', 'menunggu_qc', 'perlu_repack', 'siap_penyimpanan', 'barang_datang'].includes(po.status)) {
+      for (const item of po.items) {
+        if (item.produkId === produkId) {
+          totalMasuk += (item.jumlahDiterima ?? item.jumlahPesan);
+        }
+      }
+    }
+  }
+
+  const sos = await fetchAllPesananCabang();
+  let totalKeluar = 0;
+  for (const so of sos) {
+    if (!['dibatalkan', 'ditolak', 'gagal_kirim'].includes(so.status)) {
+      for (const item of so.items) {
+        if (item.produkId === produkId) {
+          totalKeluar += (item.jumlahDiambil ?? item.jumlahDipesan);
+        }
+      }
+    }
+  }
+
+  return Math.max(0, totalMasuk - totalKeluar);
+}
+
 export const buatTugasPerhitungan = async (
   produkId: string,
   produkKode: string,
   produkNama: string,
   satuan: string,
 ) => {
+  const jumlahSistem = await hitungStokSistemRealtime(produkId);
+  
   const stok = await fetchStokByProduk(produkId);
-  const jumlahSistem = stok ? stok.jumlahTersedia : 0;
   const lokasiPenyimpanan = stok?.lokasiPenyimpanan || 'Rak A1';
 
   const produk = { id: produkId, kodeProduk: produkKode, namaProduk: produkNama, satuan };

@@ -11,7 +11,7 @@ import ProdukPage from '../pages/data-master/produk/ProdukPage';
 import PemasokPage from '../pages/data-master/pemasok/PemasokPage';
 import CabangPage from '../pages/data-master/cabang/CabangPage';
 import GudangLokasiPage from '../pages/data-master/gudang/GudangLokasiPage';
-import BarcodePage from '../pages/data-master/barcode/BarcodePage';
+
 import PesananPembelianPage from '../pages/barang-masuk/pesanan-pembelian/PesananPembelianPage';
 import PenerimaanPage from '../pages/barang-masuk/penerimaan/PenerimaanPage';
 import PemeriksaanKualitasPage from '../pages/barang-masuk/pemeriksaan-kualitas/PemeriksaanKualitasPage';
@@ -30,6 +30,8 @@ import PengembalianPemasokPage from '../pages/pengendalian/pengembalian-pemasok/
 import WastePage from '../pages/pengendalian/waste/WastePage';
 import LaporanPage from '../pages/laporan/LaporanPage';
 import AdministrasiPage from '../pages/administrasi/AdministrasiPage';
+import PenjualanCabangPage from '../pages/fotosnaps/penjualan-cabang/PenjualanCabangPage';
+import StokCabangPage from '../pages/fotosnaps/stok-cabang/StokCabangPage';
 import RequireModule from './RequireModule';
 
 export default function AppRoutes() {
@@ -66,7 +68,7 @@ export default function AppRoutes() {
         <Route path="/data-master/pemasok" element={<PemasokPage />} />
         <Route path="/data-master/cabang" element={<CabangPage />} />
         <Route path="/data-master/gudang-lokasi" element={<GudangLokasiPage />} />
-        <Route path="/data-master/barcode" element={<BarcodePage />} />
+
 
         {/* Barang Masuk */}
         <Route path="/barang-masuk/pesanan-pembelian" element={<PesananPembelianPage />} />
@@ -96,6 +98,10 @@ export default function AppRoutes() {
 
         {/* Laporan & Analitik */}
         <Route path="/laporan" element={<LaporanPage />} />
+
+        {/* Fotosnaps — Fitur Khusus */}
+        <Route path="/fotosnaps/penjualan-cabang" element={<PenjualanCabangPage />} />
+        <Route path="/fotosnaps/stok-cabang" element={<StokCabangPage />} />
 
         {/* Administrasi — khusus role dengan hak akses modul 'pengaturan_sistem' */}
         <Route

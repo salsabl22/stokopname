@@ -7,6 +7,8 @@ import PenerimaanFormModal from './PenerimaanFormModal';
 import type { PesananPembelian } from '../../../types/barangMasuk';
 import { useMasterStatus } from '../../../hooks/useMasterStatus';
 import { fetchPOByStatus, prosesPenerimaan } from '../../../services/barangMasukService';
+import { createException } from '../../../services/pengendalianService';
+import { createWaste } from '../../../services/pengendalianService';
 
 export default function PenerimaanPage() {
   const [data, setData] = useState<PesananPembelian[]>([]);
@@ -16,7 +18,6 @@ export default function PenerimaanPage() {
   const [selectedPO, setSelectedPO] = useState<PesananPembelian | null>(null);
 
   const { getLabel, getTone } = useMasterStatus('PO');
-
   const { toasts, showToast, dismissToast } = useToast();
 
   async function loadData() {
@@ -31,9 +32,7 @@ export default function PenerimaanPage() {
     }
   }
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const filteredData = useMemo(
     () =>
@@ -45,14 +44,77 @@ export default function PenerimaanPage() {
     [data, searchTerm],
   );
 
-  async function handleSubmit(barangSesuai: boolean, jumlahDiterima: Record<string, number>) {
+  async function handleSubmit(
+    barangSesuai: boolean,
+    jumlahDiterima: Record<string, number>,
+  ) {
     if (!selectedPO) return;
     const result = await prosesPenerimaan(selectedPO.id, barangSesuai, jumlahDiterima);
     await loadData();
+
+    // Kasus 1: Barang TIDAK sesuai → otomatis masuk Pengembalian ke Supplier
     if (!barangSesuai) {
-      showToast('error', `${result.nomorPO} ditandai Pengecualian — barang tidak sesuai pesanan.`);
-    } else if (result.jumlahSesuai === false) {
-      showToast('error', `${result.nomorPO} diterima dengan selisih jumlah. Lanjut ke Pemeriksaan Kualitas.`);
+      try {
+        const itemDetail = selectedPO.items
+          .map((it) => `${it.produkNama} (${it.jumlahPesan} ${it.satuan})`)
+          .join(', ');
+
+        await createException({
+          tipe: 'BARANG_TIDAK_SESUAI_FAKTUR',
+          referensi: selectedPO.nomorPO,
+          keterangan: `Pengembalian otomatis — barang tidak sesuai faktur. Produk: ${itemDetail}`,
+          alasanPengembalian: 'Barang tidak sesuai dengan pesanan pembelian',
+        });
+        showToast('error', `${result.nomorPO} ditandai Tidak Sesuai — otomatis masuk ke Pengembalian Supplier.`);
+      } catch {
+        showToast('error', `${result.nomorPO} ditandai Pengecualian — barang tidak sesuai pesanan.`);
+      }
+      return;
+    }
+
+    // Kasus 2: Barang sesuai tapi ada selisih jumlah per item
+    for (const item of selectedPO.items) {
+      const diterima = jumlahDiterima[item.id] ?? item.jumlahPesan;
+      const selisih = diterima - item.jumlahPesan;
+
+      if (selisih < 0) {
+        // Kurang → masuk Waste (barang tidak lengkap / hilang)
+        try {
+          await createWaste({
+            produkId: item.produkId,
+            jumlah: Math.abs(selisih),
+            satuan: item.satuan,
+            alasan: `Kekurangan saat penerimaan PO ${selectedPO.nomorPO}`,
+            referensi: selectedPO.nomorPO,
+          });
+          showToast(
+            'warning',
+            `${item.produkNama}: kurang ${Math.abs(selisih)} ${item.satuan} — otomatis dicatat di Waste.`,
+          );
+        } catch {
+          // silent — tidak blokir flow utama
+        }
+      } else if (selisih > 0) {
+        // Lebih → masuk Pengembalian ke Supplier
+        try {
+          await createException({
+            tipe: 'JUMLAH_LEBIH_DARI_PO',
+            referensi: selectedPO.nomorPO,
+            keterangan: `Kelebihan ${selisih} ${item.satuan} produk ${item.produkNama} saat penerimaan PO ${selectedPO.nomorPO}. Jumlah dipesan: ${item.jumlahPesan}, diterima: ${diterima}. Kelebihan ${selisih} harus dikembalikan ke supplier.`,
+            alasanPengembalian: `Jumlah diterima melebihi PO — ${selisih} ${item.satuan} dikembalikan`,
+          });
+          showToast(
+            'warning',
+            `${item.produkNama}: lebih ${selisih} ${item.satuan} — otomatis masuk Pengembalian Supplier.`,
+          );
+        } catch {
+          // silent — tidak blokir flow utama
+        }
+      }
+    }
+
+    if (result.jumlahSesuai === false) {
+      showToast('warning', `${result.nomorPO} diterima dengan selisih jumlah. Lanjut ke Pemeriksaan Kualitas.`);
     } else {
       showToast('success', `${result.nomorPO} diterima sesuai pesanan. Lanjut ke Pemeriksaan Kualitas.`);
     }

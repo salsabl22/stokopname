@@ -6,15 +6,16 @@ import {
   Package,
   Ruler,
   Truck,
+  CalendarDays,
   GitBranch,
   Warehouse,
-  ScanLine,
   ShoppingCart,
   PackageCheck,
   ClipboardCheck,
   Archive,
   Boxes,
   RefreshCw,
+  BarChart3,
   PackagePlus,
   MoveRight,
   Send,
@@ -22,85 +23,112 @@ import {
   Scale,
   RotateCcw,
   Trash2,
-  BarChart3,
   Users,
   Shield,
   Menu,
   X,
   ChevronDown,
+  ShoppingBag,
+  LineChart,
 } from 'lucide-react';
-import type { NavGroup } from '../../types/nav';
+import type { NavItem, NavGroup } from '../../types/nav';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBusinessUnit, UNIT_BISNIS_LIST } from '../../contexts/BusinessUnitContext';
+import type { UnitBisnis } from '../../contexts/BusinessUnitContext';
 import { canView } from '../../utils/permissions';
 
-export const NAV_GROUPS: NavGroup[] = [
-  {
-    items: [
-      { label: 'Dasbor', path: '/', icon: LayoutDashboard, implemented: true },
-      { label: 'Tugas Saya', path: '/tugas-saya', icon: ClipboardList, implemented: true },
-    ],
-  },
-  {
-    title: 'Data Master',
-    items: [
-      { label: 'Produk', path: '/data-master/produk', modul: 'data_master', icon: Package, implemented: true },
-      { label: 'Satuan Barang', path: '/data-master/satuan-barang', modul: 'data_master', icon: Ruler, implemented: true },
-      { label: 'Supplier', path: '/data-master/pemasok', modul: 'data_master', icon: Truck, implemented: true },
-      { label: 'Cabang', path: '/data-master/cabang', modul: 'data_master', icon: GitBranch, implemented: true },
-      { label: 'Gudang & Lokasi', path: '/data-master/gudang-lokasi', modul: 'data_master', icon: Warehouse, implemented: true },
-      { label: 'Barcode', path: '/data-master/barcode', modul: 'data_master', icon: ScanLine, implemented: true },
-    ],
-  },
-  {
-    title: 'Barang Masuk',
-    items: [
-      { label: 'Pesanan Pembelian', path: '/barang-masuk/pesanan-pembelian', modul: 'barang_masuk', icon: ShoppingCart, implemented: true },
-      { label: 'Penerimaan', path: '/barang-masuk/penerimaan', modul: 'barang_masuk', icon: PackageCheck, implemented: true },
-      { label: 'Pemeriksaan Kualitas', path: '/barang-masuk/pemeriksaan-kualitas', modul: 'barang_masuk', icon: ClipboardCheck, implemented: true },
-      { label: 'Penyimpanan', path: '/barang-masuk/penyimpanan', modul: 'barang_masuk', icon: Archive, implemented: true },
-    ],
-  },
-  {
-    title: 'Operasional',
-    items: [
-      { label: 'Persediaan', path: '/operasional/persediaan', modul: 'operasional', icon: Boxes, implemented: true },
-      { label: 'Pengisian Ulang', path: '/operasional/pengisian-ulang', modul: 'operasional', icon: RefreshCw, implemented: true },
-      { label: 'Pergerakan Stok', path: '/operasional/pergerakan-stok', modul: 'operasional', icon: BarChart3, implemented: true },
-      { label: 'Packing', path: '/operasional/packing', modul: 'operasional', icon: PackagePlus, implemented: true },
-    ],
-  },
-  {
-    title: 'Barang Keluar',
-    items: [
-      { label: 'Pesanan Cabang', path: '/barang-keluar/pesanan-cabang', modul: 'barang_keluar', icon: ShoppingCart, implemented: true },
-      { label: 'Alokasi', path: '/barang-keluar/alokasi', modul: 'barang_keluar', icon: MoveRight, implemented: true },
-      { label: 'Pengambilan', path: '/barang-keluar/pengambilan', modul: 'barang_keluar', icon: PackageCheck, implemented: true },
-      { label: 'Pengiriman', path: '/barang-keluar/pengiriman', modul: 'barang_keluar', icon: Send, implemented: true },
-      { label: 'Retur', path: '/barang-keluar/retur', modul: 'barang_keluar', icon: Undo2, implemented: true },
-    ],
-  },
-  {
-    title: 'Pengendalian',
-    items: [
-      { label: 'Perhitungan Stok', path: '/pengendalian/perhitungan-stok', modul: 'stock_opname', icon: Scale, implemented: true },
-      { label: 'Pengembalian ke Supplier', path: '/pengendalian/pengembalian-pemasok', modul: 'stock_opname', icon: RotateCcw, implemented: true },
-      { label: 'Waste', path: '/pengendalian/waste', modul: 'stock_opname', icon: Trash2, implemented: true },
-    ],
-  },
-  {
-    title: 'Laporan & Analitik',
-    items: [
-      { label: 'Laporan', path: '/laporan', modul: 'laporan', icon: BarChart3, implemented: true },
-    ],
-  },
-  {
-    title: 'Sistem',
-    items: [
-      { label: 'Administrasi', path: '/administrasi', modul: 'pengaturan_sistem', icon: Users, implemented: true },
-    ],
-  },
-];
+/** Unit bisnis yang menggunakan istilah "Event" sebagai pengganti "Cabang" */
+const UNIT_PAKAI_EVENT: UnitBisnis[] = ['BURGER_CHILL', 'KERIPIK_BUJANGAN'];
+
+function isUnitPakaiEvent(unit: UnitBisnis): boolean {
+  return UNIT_PAKAI_EVENT.includes(unit);
+}
+
+/** Bangun daftar nav group berdasarkan unit bisnis aktif. */
+export function buildNavGroups(activeUnit: UnitBisnis): NavGroup[] {
+  const labelCabangAtauEvent = isUnitPakaiEvent(activeUnit) ? 'Event' : 'Cabang';
+  const labelPesananCabangAtauEvent = isUnitPakaiEvent(activeUnit) ? 'Pesanan Event' : 'Pesanan Cabang';
+  const iconCabangAtauEvent = isUnitPakaiEvent(activeUnit) ? CalendarDays : GitBranch;
+
+  return [
+    {
+      items: [
+        { label: 'Dasbor', path: '/', icon: LayoutDashboard, implemented: true },
+        { label: 'Tugas Saya', path: '/tugas-saya', icon: ClipboardList, implemented: true },
+      ],
+    },
+    {
+      title: 'Data Master',
+      items: [
+        { label: 'Produk', path: '/data-master/produk', modul: 'data_master', icon: Package, implemented: true },
+        { label: 'Satuan Barang', path: '/data-master/satuan-barang', modul: 'data_master', icon: Ruler, implemented: true },
+        { label: 'Supplier', path: '/data-master/pemasok', modul: 'data_master', icon: Truck, implemented: true },
+        { label: labelCabangAtauEvent, path: '/data-master/cabang', modul: 'data_master', icon: iconCabangAtauEvent, implemented: true },
+        { label: 'Gudang & Lokasi', path: '/data-master/gudang-lokasi', modul: 'data_master', icon: Warehouse, implemented: true },
+      ],
+    },
+    {
+      title: 'Barang Masuk',
+      items: [
+        { label: 'Pesanan Pembelian', path: '/barang-masuk/pesanan-pembelian', modul: 'barang_masuk', icon: ShoppingCart, implemented: true },
+        { label: 'Penerimaan', path: '/barang-masuk/penerimaan', modul: 'barang_masuk', icon: PackageCheck, implemented: true },
+        { label: 'Pemeriksaan Kualitas', path: '/barang-masuk/pemeriksaan-kualitas', modul: 'barang_masuk', icon: ClipboardCheck, implemented: true },
+        { label: 'Penyimpanan', path: '/barang-masuk/penyimpanan', modul: 'barang_masuk', icon: Archive, implemented: true },
+      ],
+    },
+    {
+      title: 'Operasional',
+      items: [
+        { label: 'Persediaan', path: '/operasional/persediaan', modul: 'operasional', icon: Boxes, implemented: true },
+        { label: 'Pengisian Ulang', path: '/operasional/pengisian-ulang', modul: 'operasional', icon: RefreshCw, implemented: true },
+        { label: 'Pergerakan Stok', path: '/operasional/pergerakan-stok', modul: 'operasional', icon: BarChart3, implemented: true },
+      ],
+    },
+    {
+      title: 'Barang Keluar',
+      items: [
+        { label: labelPesananCabangAtauEvent, path: '/barang-keluar/pesanan-cabang', modul: 'barang_keluar', icon: ShoppingCart, implemented: true },
+        { label: 'Alokasi', path: '/barang-keluar/alokasi', modul: 'barang_keluar', icon: MoveRight, implemented: true },
+        { label: 'Pengambilan', path: '/barang-keluar/pengambilan', modul: 'barang_keluar', icon: PackageCheck, implemented: true },
+        { label: 'Packing', path: '/operasional/packing', modul: 'barang_keluar', icon: PackagePlus, implemented: true },
+        { label: 'Pengiriman', path: '/barang-keluar/pengiriman', modul: 'barang_keluar', icon: Send, implemented: true },
+        { label: 'Retur', path: '/barang-keluar/retur', modul: 'barang_keluar', icon: Undo2, implemented: true },
+      ],
+    },
+    {
+      title: 'Pengendalian',
+      items: [
+        { label: 'Perhitungan Stok', path: '/pengendalian/perhitungan-stok', modul: 'stock_opname', icon: Scale, implemented: true },
+        { label: 'Pengembalian ke Supplier', path: '/pengendalian/pengembalian-pemasok', modul: 'stock_opname', icon: RotateCcw, implemented: true },
+        { label: 'Waste', path: '/pengendalian/waste', modul: 'stock_opname', icon: Trash2, implemented: true },
+      ],
+    },
+    {
+      title: 'Laporan & Analitik',
+      items: [
+        { label: 'Laporan', path: '/laporan', modul: 'laporan', icon: BarChart3, implemented: true },
+      ],
+    },
+    // Fitur eksklusif Fotosnaps — hanya tampil jika activeUnit === 'FOTOSNAPS'
+    ...(activeUnit === 'FOTOSNAPS'
+      ? [
+          {
+            title: 'Fotosnaps — Cabang',
+            items: [
+              { label: 'Penjualan Cabang', path: '/fotosnaps/penjualan-cabang', modul: 'barang_keluar', icon: ShoppingBag, implemented: true },
+              { label: 'Stok Cabang', path: '/fotosnaps/stok-cabang', modul: 'stock_opname', icon: LineChart, implemented: true },
+            ],
+          },
+        ]
+      : []),
+    {
+      title: 'Sistem',
+      items: [
+        { label: 'Administrasi', path: '/administrasi', modul: 'pengaturan_sistem', icon: Users, implemented: true },
+      ],
+    },
+  ];
+}
 
 export default function Sidebar() {
   const { user } = useAuth();
@@ -108,9 +136,11 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
 
-  const visibleGroups = NAV_GROUPS.map((group) => ({
+  const navGroups = buildNavGroups(activeUnit);
+
+  const visibleGroups = navGroups.map((group) => ({
     ...group,
-    items: group.items.filter((item) => !item.modul || canView(user, item.modul)),
+    items: group.items.filter((item: NavItem) => !item.modul || canView(user, item.modul)),
   })).filter((group) => group.items.length > 0);
 
   const sidebarContent = (
@@ -170,7 +200,7 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-2 py-3 space-y-4 overflow-y-auto">
+      <nav className="flex-1 px-2 py-3 space-y-4 overflow-y-auto hide-scrollbar">
         {visibleGroups.map((group, idx) => (
           <div key={idx}>
             {group.title && (
@@ -203,18 +233,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-3 py-3 border-t border-white/10">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-brand-600/30 flex items-center justify-center">
-            <Shield size={12} className="text-brand-400" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-500">SOJ v1.0 — {user?.name || 'Guest'}</p>
-            <p className="text-[9px] text-slate-600">{user?.role || ''}</p>
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 
@@ -238,7 +257,7 @@ export default function Sidebar() {
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-60 shrink-0 h-screen sticky top-0 bg-navy-950 text-slate-300 flex-col overflow-y-auto">
+      <aside className="hidden lg:flex w-60 shrink-0 h-screen sticky top-0 bg-navy-950 text-slate-300 flex-col overflow-y-auto hide-scrollbar">
         {sidebarContent}
       </aside>
 

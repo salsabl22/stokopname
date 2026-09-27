@@ -8,15 +8,14 @@ import {
   ArrowRight,
   RefreshCcw,
   CheckCircle2,
-  ListTodo,
+  Trash2,
 } from 'lucide-react';
 import Badge from '../../components/ui/Badge';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useToast } from '../../utils/useToast';
-import { fetchAllTasks, updateTaskStatus } from '../../services/taskService';
+import { fetchAllTasks, updateTaskStatus, deleteTask } from '../../services/taskService';
 import type { StatusTugas, UserTask } from '../../types/task';
 import {
-  PRIORITAS_TUGAS_TONE,
   STATUS_TUGAS_LABEL,
   STATUS_TUGAS_TONE,
   TIPE_TUGAS_LABEL,
@@ -32,7 +31,6 @@ export default function TugasSayaPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipe, setFilterTipe] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterPrioritas, setFilterPrioritas] = useState<string>('all');
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -63,18 +61,16 @@ export default function TugasSayaPage() {
 
       const matchTipe = filterTipe === 'all' || t.tipe === filterTipe;
       const matchStatus = filterStatus === 'all' || t.status.toLowerCase() === filterStatus.toLowerCase();
-      const matchPrioritas = filterPrioritas === 'all' || t.prioritas.toLowerCase() === filterPrioritas.toLowerCase();
 
-      return matchSearch && matchTipe && matchStatus && matchPrioritas;
+      return matchSearch && matchTipe && matchStatus;
     });
-  }, [tasks, searchTerm, filterTipe, filterStatus, filterPrioritas]);
+  }, [tasks, searchTerm, filterTipe, filterStatus]);
 
   const stats = useMemo(() => {
     const total = tasks.length;
     const pending = tasks.filter((t) => ['MENUNGGU', 'DITUGASKAN', 'DIKERJAKAN', 'tertunda', 'dikerjakan'].includes(t.status)).length;
-    const highPriority = tasks.filter((t) => ['tinggi', 'TINGGI'].includes(t.prioritas) && !['selesai', 'SELESAI'].includes(t.status)).length;
     const completed = tasks.filter((t) => ['selesai', 'SELESAI'].includes(t.status)).length;
-    return { total, pending, highPriority, completed };
+    return { total, pending, completed };
   }, [tasks]);
 
   async function handleToggleStatus(task: UserTask) {
@@ -92,12 +88,25 @@ export default function TugasSayaPage() {
     }
   }
 
+  async function handleDeleteTask(task: UserTask) {
+    const confirmed = window.confirm(`Hapus tugas ${task.judul}? Tindakan ini tidak bisa dibatalkan.`);
+    if (!confirmed) return;
+
+    try {
+      await deleteTask(task.id);
+      await loadTasks();
+      showToast('success', `Tugas ${task.judul} berhasil dihapus.`);
+    } catch {
+      showToast('error', 'Gagal menghapus tugas.');
+    }
+  }
+
   return (
     <div className="space-y-4">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       {/* SUMMARY STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="card p-3.5 flex items-center justify-between">
           <div>
             <span className="text-[11px] text-slate-500 font-medium block">Total Tugas</span>
@@ -115,16 +124,6 @@ export default function TugasSayaPage() {
           </div>
           <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
             <Clock size={16} />
-          </div>
-        </div>
-
-        <div className="card p-3.5 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] text-slate-500 font-medium block">Prioritas Tinggi</span>
-            <span className="text-xl font-bold text-rose-600 mt-0.5 block">{stats.highPriority}</span>
-          </div>
-          <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
-            <ListTodo size={16} />
           </div>
         </div>
 
@@ -183,18 +182,6 @@ export default function TugasSayaPage() {
               <option value="TERLAMBAT">Terlambat</option>
             </select>
 
-            {/* Prioritas Filter */}
-            <select
-              className="input-field text-xs py-1.5 px-2.5 w-auto"
-              value={filterPrioritas}
-              onChange={(e) => setFilterPrioritas(e.target.value)}
-            >
-              <option value="all">Semua Prioritas</option>
-              <option value="TINGGI">Tinggi</option>
-              <option value="NORMAL">Normal</option>
-              <option value="RENDAH">Rendah</option>
-            </select>
-
             <button type="button" className="btn-secondary py-1.5 px-2.5 text-xs" onClick={loadTasks}>
               <RefreshCcw size={13} />
             </button>
@@ -229,30 +216,24 @@ export default function TugasSayaPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="text-[11px] uppercase tracking-wide text-slate-400 border-b border-surface-border bg-slate-50/50">
-                  <th className="px-4 py-2.5 font-medium">No. Tugas</th>
-                  <th className="px-4 py-2.5 font-medium">Tipe & Judul</th>
-                  <th className="px-4 py-2.5 font-medium">Referensi</th>
-                  <th className="px-4 py-2.5 font-medium">Prioritas</th>
-                  <th className="px-4 py-2.5 font-medium">Status</th>
-                  <th className="px-4 py-2.5 font-medium">Petugas</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Aksi</th>
+                <tr className="text-[11px] uppercase tracking-wide text-black border-b border-surface-border bg-slate-50/50">
+                  <th className="px-4 py-2.5 font-medium text-center">No. Tugas</th>
+                  <th className="px-4 py-2.5 font-medium text-center">Tipe & Judul</th>
+                  <th className="px-4 py-2.5 font-medium text-center">Status</th>
+                  <th className="px-4 py-2.5 font-medium text-center">Petugas</th>
+                  <th className="px-4 py-2.5 font-medium text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredTasks.map((t) => (
+                {filteredTasks.map((t, index) => (
                   <tr key={t.id} className="border-b border-surface-border last:border-0 hover:bg-slate-50/60">
-                    <td className="px-4 py-2.5 text-xs font-mono font-medium text-slate-800">{t.nomorTugas}</td>
+                    <td className="px-4 py-2.5 text-xs font-mono text-center font-medium text-slate-800">{index + 1}</td>
                     <td className="px-4 py-2.5">
-                      <div className="text-xs font-medium text-slate-800">{t.judul}</div>
-                      <div className="text-[11px] text-slate-500">{TIPE_TUGAS_LABEL[t.tipe]}</div>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono text-slate-600">{t.referensiNomor}</td>
-                    <td className="px-4 py-2.5">
-                      <Badge tone={PRIORITAS_TUGAS_TONE[t.prioritas]}>{t.prioritas}</Badge>
+                      <div className="text-xs font-medium text-justify text-slate-800">{t.judul}</div>
+                      <div className="text-[11px] text-slate-500 text-justify">{TIPE_TUGAS_LABEL[t.tipe]}</div>
                     </td>
                     <td className="px-4 py-2.5">
-                      <div className="flex flex-col gap-1 items-start">
+                      <div className="flex flex-col gap-1 items-center">
                         <Badge tone={STATUS_TUGAS_TONE[t.status] || 'neutral'}>{STATUS_TUGAS_LABEL[t.status] || t.status}</Badge>
                         {t.deadline && (
                            <span className={`text-[10px] ${new Date(t.deadline) < new Date() && !['SELESAI','selesai'].includes(t.status) ? 'text-rose-500 font-medium' : 'text-slate-500'}`}>
@@ -261,8 +242,8 @@ export default function TugasSayaPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-600">{t.assignee}</td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-4 py-2.5 text-xs text-slate-600 text-center">Admin</td>
+                    <td className="px-4 py-2.5 text-center">
                       <div className="inline-flex items-center gap-1.5">
                         <button
                           type="button"
@@ -278,6 +259,14 @@ export default function TugasSayaPage() {
                           onClick={() => navigate(t.targetUrl)}
                         >
                           Buka <ArrowRight size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="text-[11px] py-1 px-2 rounded-md text-rose-600 hover:bg-rose-50 transition-colors"
+                          onClick={() => handleDeleteTask(t)}
+                          title="Hapus Tugas"
+                        >
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </td>

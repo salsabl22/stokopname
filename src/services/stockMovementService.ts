@@ -1,4 +1,6 @@
 import type { StockMovement } from '../types/stockMovement';
+import { fetchAllPO } from './barangMasukService';
+import { fetchAllPesananCabang } from './pesananCabangService';
 
 function getApiBase(): string {
   const unit = localStorage.getItem('wms_unit_bisnis');
@@ -23,25 +25,56 @@ async function handleResponse(res: Response) {
   return data;
 }
 
-function mapMovement(m: any): StockMovement {
-  return {
-    id: m.id,
-    timestamp: m.createdAt,
-    produkId: m.produkId,
-    produkKode: m.produk?.kodeProduk ?? '-',
-    produkNama: m.produk?.namaProduk ?? '-',
-    jumlah: m.jumlah,
-    satuan: m.produk?.satuan?.kode ?? m.produk?.satuan?.nama ?? 'PCS',
-    tipe: m.tipe,
-    sumber: m.lokasiAsal ?? '-',
-    tujuan: m.lokasiTujuan ?? '-',
-    referensi: m.nomorDokumen ?? m.referensi ?? '-',
-    keterangan: m.keterangan ?? undefined,
-  };
-}
-
 export async function fetchStockMovements(): Promise<StockMovement[]> {
-  const res = await fetch(`${getApiBase()}/operasional/stock-movement`, { headers: authHeaders() });
-  const data = await handleResponse(res);
-  return (data as any[]).map(mapMovement);
+  const [resMov, pos, sos] = await Promise.all([
+    fetch(`${getApiBase()}/operasional/stock-movement`, { headers: authHeaders() }).then(handleResponse),
+    fetchAllPO(),
+    fetchAllPesananCabang(),
+  ]);
+
+  const unit = localStorage.getItem('wms_unit_bisnis');
+  const isEvent = unit === 'KERIPIK_BUJANGAN' || unit === 'BURGER_CHILL';
+  const destLabel = isEvent ? 'Event' : 'Cabang';
+
+  return (resMov as any[]).map((m: any) => {
+    let sumberOverride = m.lokasiAsal;
+    let tujuanOverride = m.lokasiTujuan;
+    const ref = m.nomorDokumen ?? m.referensi ?? '';
+
+    if (!sumberOverride || !tujuanOverride || sumberOverride === '-' || tujuanOverride === '-') {
+      if (m.tipe === 'masuk') {
+        const po = pos.find((p) => p.nomorPO === ref);
+        sumberOverride = po ? `Pemasok ${po.pemasokNama}` : 'Pemasok';
+        tujuanOverride = 'Gudang Pusat';
+      } else if (m.tipe === 'keluar') {
+        const so = sos.find((s) => s.nomorPesanan === ref);
+        sumberOverride = 'Gudang Pusat';
+        tujuanOverride = so ? `${destLabel} ${so.cabangNama}` : destLabel;
+      } else if (m.tipe === 'retur') {
+        sumberOverride = destLabel;
+        tujuanOverride = 'Gudang Pusat';
+      } else if (m.tipe === 'waste') {
+        sumberOverride = 'Gudang Pusat';
+        tujuanOverride = 'Pembuangan / Waste';
+      } else if (m.tipe === 'penyesuaian') {
+        sumberOverride = 'Sistem';
+        tujuanOverride = 'Gudang Pusat';
+      }
+    }
+
+    return {
+      id: m.id,
+      timestamp: m.createdAt,
+      produkId: m.produkId,
+      produkKode: m.produk?.kodeProduk ?? '-',
+      produkNama: m.produk?.namaProduk ?? '-',
+      jumlah: m.jumlah,
+      satuan: m.satuan || m.produk?.satuan?.kode || m.produk?.satuan?.nama || 'PCS',
+      tipe: m.tipe,
+      sumber: sumberOverride || '-',
+      tujuan: tujuanOverride || '-',
+      referensi: ref || '-',
+      keterangan: m.keterangan ?? undefined,
+    };
+  });
 }

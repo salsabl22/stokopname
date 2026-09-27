@@ -72,3 +72,11 @@ export async function completeTaskByRef(referensiId: string): Promise<void> {
   storage.setTasks(updated);
   return delay(undefined as void);
 }
+
+export async function deleteTask(id: string): Promise<void> {
+  const list = storage.getTasks();
+  const exists = list.some((t) => t.id === id);
+  if (!exists) throw new Error('Tugas tidak ditemukan');
+  storage.setTasks(list.filter((t) => t.id !== id));
+  return delay(undefined as void);
+}

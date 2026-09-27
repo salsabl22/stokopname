@@ -6,6 +6,7 @@ import { isReturFormValid, validateReturForm } from '../../../utils/validateRetu
 import { fetchCabang } from '../../../services/cabangService';
 import { fetchProduk } from '../../../services/produkService';
 import { fetchPOByStatus } from '../../../services/barangMasukService';
+import { fetchSatuanBarang } from '../../../services/satuanBarangService';
 import type { Cabang } from '../../../types/cabang';
 import type { Produk } from '../../../types/produk';
 import type { PesananPembelian } from '../../../types/barangMasuk';
@@ -35,6 +36,7 @@ export default function ReturFormModal({ open, onClose, onSubmit }: ReturFormMod
   const [cabangOptions, setCabangOptions] = useState<Cabang[]>([]);
   const [produkOptions, setProdukOptions] = useState<Produk[]>([]);
   const [poOptions, setPoOptions] = useState<PesananPembelian[]>([]);
+  const [satuanOptions, setSatuanOptions] = useState<any[]>([]);
 
   // Foto kerusakan
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
@@ -52,6 +54,7 @@ export default function ReturFormModal({ open, onClose, onSubmit }: ReturFormMod
     fetchCabang().then((data) => setCabangOptions(data.filter((c) => c.status === 'aktif')));
     fetchProduk().then(setProdukOptions);
     fetchPOByStatus(['retur']).then(setPoOptions);
+    fetchSatuanBarang().then(setSatuanOptions);
   }, [open]);
 
   const selectedPO = poOptions.find((po) => po.id === poId);
@@ -79,7 +82,7 @@ export default function ReturFormModal({ open, onClose, onSubmit }: ReturFormMod
     setPoId(id);
     const po = poOptions.find((p) => p.id === id);
     if (po) {
-      setItems(po.items.map((it) => ({ produkId: it.produkId, jumlah: String(it.jumlahDiterima ?? it.jumlahPesan) })));
+      setItems(po.items.map((it) => ({ produkId: it.produkId, satuan: (it as any).satuan, jumlah: String(it.jumlahDiterima ?? it.jumlahPesan) })));
     }
   }
 
@@ -246,7 +249,7 @@ export default function ReturFormModal({ open, onClose, onSubmit }: ReturFormMod
             {items.map((item, index) => (
               <div key={index} className="grid grid-cols-12 gap-2 items-start">
                 <select
-                  className="input-field col-span-7"
+                  className="input-field col-span-5"
                   value={item.produkId}
                   onChange={(e) => updateItem(index, { produkId: e.target.value })}
                   disabled={submitting || sumber === 'internal'}
@@ -261,12 +264,25 @@ export default function ReturFormModal({ open, onClose, onSubmit }: ReturFormMod
                 <input
                   type="number"
                   min={0}
-                  className="input-field col-span-4"
+                  className="input-field col-span-2"
                   placeholder="Jumlah"
                   value={item.jumlah}
                   onChange={(e) => updateItem(index, { jumlah: e.target.value })}
                   disabled={submitting || sumber === 'internal'}
                 />
+                <select
+                  className="input-field col-span-2"
+                  value={(item as any).satuan || ''}
+                  onChange={(e) => updateItem(index, { satuan: e.target.value } as any)}
+                  disabled={submitting || sumber === 'internal'}
+                >
+                  <option value="">Satuan</option>
+                  {satuanOptions.map((s) => (
+                    <option key={s.id} value={s.kodeSatuan}>
+                      {s.kodeSatuan} — {s.namaSatuan}
+                    </option>
+                  ))}
+                </select>
                 {sumber === 'cabang' && (
                   <button
                     type="button"

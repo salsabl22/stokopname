@@ -1,6 +1,8 @@
 import Modal from '../../../components/ui/Modal';
 import Badge from '../../../components/ui/Badge';
 import type { Produk } from '../../../types/produk';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+
 
 interface ProdukDetailModalProps {
   open: boolean;
@@ -18,6 +20,10 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export default function ProdukDetailModal({ open, item, onClose }: ProdukDetailModalProps) {
+  const { activeUnit } = useBusinessUnit();
+
+
+
   if (!item) return null;
 
   return (
@@ -36,10 +42,7 @@ export default function ProdukDetailModal({ open, item, onClose }: ProdukDetailM
         <Row label="Nama Produk" value={item.namaProduk} />
         <Row label="Kategori" value={item.kategori} />
         <Row label="Unit Bisnis" value={item.unitBisnis === 'FOTOSNAPS' ? '📸 Fotosnaps' : '🥨 Keripik Bujangan'} />
-        <Row label="Satuan Dasar" value={item.satuan?.nama ? `${item.satuan.kode} (${item.satuan.nama})` : (item.satuan?.kode ?? String(item.satuan ?? '-'))} />
-        <Row label="Satuan Pembelian" value={item.satuanPembelian?.nama ? `${item.satuanPembelian.kode} (${item.satuanPembelian.nama})` : (item.satuanPembelian?.kode ?? String(item.satuanPembelian ?? '-'))} />
-        <Row label="Konversi" value={`1 ${item.satuanPembelian?.kode ?? item.satuanPembelian ?? '?'} = ${item.konversi} ${item.satuan?.kode ?? item.satuan ?? '?'}`} />
-        <Row label="Minimum Stok" value={`${item.minimumStok} ${item.satuan?.kode ?? item.satuan ?? ''}`} />
+        <Row label="Konversi (Pengali)" value={item.konversi} />
         <Row
           label="Status"
           value={

@@ -5,7 +5,6 @@ import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import ProdukFormModal from './ProdukFormModal';
 import ProdukDetailModal from './ProdukDetailModal';
 import type { ProdukFormValues, StatusProduk } from '../../../types/produk';
-import { KATEGORI_PRODUK_OPTIONS } from '../../../types/produk';
 import { createProduk, deleteProduk, fetchProduk, updateProduk } from '../../../services/produkService';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { exportToExcel, exportToPdf } from '../../../utils/exportUtils';
@@ -19,7 +18,6 @@ export default function ProdukPage() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
-  const [kategoriFilter, setKategoriFilter] = useState<string>('semua');
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -28,6 +26,18 @@ export default function ProdukPage() {
   const [deleting, setDeleting] = useState(false);
 
   const { activeUnit, activeUnitInfo } = useBusinessUnit();
+
+  /** Format konversi ke bentuk human-readable, e.g. "1 Bal = 50 PCS" */
+  function formatKonversi(item: any): string {
+    if (!item.satuanPembelian || !item.satuan) return String(item.konversi ?? '-');
+    const jumlah = item.konversi ?? 1;
+    const satuanBeli = item.satuanPembelian?.kode || item.satuanPembelian?.nama || '';
+    const satuanDasar = item.satuan?.kode || item.satuan?.nama || '';
+    if (!satuanBeli || !satuanDasar || satuanBeli === satuanDasar) return String(jumlah);
+    return `1 ${satuanBeli} = ${jumlah} ${satuanDasar}`;
+  }
+
+
 
   async function loadData() {
     setLoading(true);
@@ -53,15 +63,10 @@ export default function ProdukPage() {
           item.kodeProduk?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.namaProduk?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'semua' || item.status === statusFilter;
-        const matchesKategori = kategoriFilter === 'semua' || item.kategori === kategoriFilter;
-        return matchesSearch && matchesStatus && matchesKategori;
+        return matchesSearch && matchesStatus;
       })
-      .map(item => ({
-        ...item,
-        _satuanNama: item.satuan?.nama || item.satuan?.kode || '-',
-        _satuanBeliNama: item.satuanPembelian?.nama || item.satuanPembelian?.kode || '-',
-      }));
-  }, [data, searchTerm, statusFilter, kategoriFilter]);
+      .map(item => ({ ...item }));
+  }, [data, searchTerm, statusFilter]);
 
   function openAddForm() {
     setEditingItem(null);
@@ -100,10 +105,7 @@ export default function ProdukPage() {
       [
         { header: 'Kode Produk', key: 'kodeProduk', width: 15 },
         { header: 'Nama Produk', key: 'namaProduk', width: 30 },
-        { header: 'Kategori', key: 'kategori', width: 20 },
-        { header: 'Satuan Dasar', key: '_satuanNama', width: 15 },
-        { header: 'Satuan Beli', key: '_satuanBeliNama', width: 15 },
-        { header: 'Min. Stok', key: 'minimumStok', width: 12 },
+        { header: 'Konversi', key: 'konversi', width: 20 },
         { header: 'Status', key: 'status', width: 10 },
       ],
       { filename: `Produk_${activeUnit}`, title: 'Data Produk', unitBisnis: activeUnitInfo.label },
@@ -116,9 +118,7 @@ export default function ProdukPage() {
       [
         { header: 'Kode', key: 'kodeProduk', width: 15 },
         { header: 'Nama Produk', key: 'namaProduk', width: 30 },
-        { header: 'Kategori', key: 'kategori', width: 20 },
-        { header: 'Satuan', key: '_satuanNama', width: 15 },
-        { header: 'Min. Stok', key: 'minimumStok', width: 12 },
+        { header: 'Konversi', key: 'konversi', width: 20 },
         { header: 'Status', key: 'status', width: 10 },
       ],
       { filename: `Produk_${activeUnit}`, title: 'Data Produk', unitBisnis: activeUnitInfo.label },
@@ -141,18 +141,6 @@ export default function ProdukPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <select
-              className="input-field w-auto"
-              value={kategoriFilter}
-              onChange={(e) => setKategoriFilter(e.target.value)}
-            >
-              <option value="semua">Semua Kategori</option>
-              {KATEGORI_PRODUK_OPTIONS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
             <select
               className="input-field w-auto"
               value={statusFilter}
@@ -191,10 +179,10 @@ export default function ProdukPage() {
                 <tr className="text-[11px] uppercase tracking-wide text-slate-400 border-b border-surface-border">
                   <th className="px-4 py-2.5 font-medium">Kode Produk</th>
                   <th className="px-4 py-2.5 font-medium">Nama Produk</th>
-                  <th className="px-4 py-2.5 font-medium">Kategori</th>
-                  <th className="px-4 py-2.5 font-medium">Satuan</th>
-                  <th className="px-4 py-2.5 font-medium">Konversi</th>
-                  <th className="px-4 py-2.5 font-medium">Min. Stok</th>
+                  {/* Konversi hanya tampil untuk non-Fotosnaps */}
+                  {activeUnit !== 'FOTOSNAPS' && (
+                    <th className="px-4 py-2.5 font-medium">Konversi</th>
+                  )}
                   <th className="px-4 py-2.5 font-medium">Status</th>
                   <th className="px-4 py-2.5 font-medium text-right">Aksi</th>
                 </tr>
@@ -204,16 +192,11 @@ export default function ProdukPage() {
                   <tr key={item.id} className="border-b border-surface-border last:border-0 hover:bg-slate-50/60">
                     <td className="px-4 py-2.5 text-xs font-medium text-slate-800">{item.kodeProduk}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-600">{item.namaProduk}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-600">{item.kategori}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-600">
-                      {item.satuan?.nama || item.satuan?.kode || item.satuan || '-'}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-600">
-                      1 {item.satuanPembelian?.kode || item.satuanPembelian || '-'} = {item.konversi} {item.satuan?.kode || item.satuan || '-'}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-600">
-                      {item.minimumStok} {item.satuan?.kode || item.satuan || ''}
-                    </td>
+                    {activeUnit !== 'FOTOSNAPS' && (
+                      <td className="px-4 py-2.5 text-xs text-slate-600 font-medium">
+                        {formatKonversi(item)}
+                      </td>
+                    )}
                     <td className="px-4 py-2.5">
                       <Badge tone={item.status === 'aktif' ? 'success' : 'neutral'}>
                         {item.status === 'aktif' ? 'Aktif' : 'Nonaktif'}

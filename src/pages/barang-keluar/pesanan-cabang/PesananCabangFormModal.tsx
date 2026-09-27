@@ -24,11 +24,18 @@ interface PesananCabangFormModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (values: PesananCabangFormValues, cabangNama: string) => Promise<void>;
+  /** Label dinamis: "Cabang" (Fotosnaps) atau "Event" (Burger Chill / Keripik Bujangan) */
+  labelSingular?: string;
 }
 
 const EMPTY_ITEM: PesananCabangItemFormValues = { produkId: '', jumlah: '' };
 
-export default function PesananCabangFormModal({ open, onClose, onSubmit }: PesananCabangFormModalProps) {
+export default function PesananCabangFormModal({
+  open,
+  onClose,
+  onSubmit,
+  labelSingular = 'Cabang',
+}: PesananCabangFormModalProps) {
   const [cabangId, setCabangId] = useState('');
   const [items, setItems] = useState<PesananCabangItemFormValues[]>([{ ...EMPTY_ITEM }]);
   const [errors, setErrors] = useState<PesananCabangFormErrors>({});
@@ -56,7 +63,6 @@ export default function PesananCabangFormModal({ open, onClose, onSubmit }: Pesa
   function getSatuanDefault(produkId: string): string {
     const produk = produkOptions.find(p => p.id === produkId);
     if (!produk) return '';
-    // Coba ambil dari satuan produk (dari backend include), fallback ke satuanOptions
     if ((produk as any).satuan?.namaSatuan) return (produk as any).satuan.namaSatuan;
     if ((produk as any).satuan?.nama) return (produk as any).satuan.nama;
     return '';
@@ -111,7 +117,7 @@ export default function PesananCabangFormModal({ open, onClose, onSubmit }: Pesa
 
   return (
     <Modal
-      title="Buat Pesanan Cabang"
+      title={`Buat Pesanan ${labelSingular}`}
       open={open}
       onClose={onClose}
       footer={
@@ -134,21 +140,23 @@ export default function PesananCabangFormModal({ open, onClose, onSubmit }: Pesa
         )}
 
         <div>
-          <label className="label-field">Cabang</label>
+          <label className="label-field">{labelSingular}</label>
           <select
             className="input-field"
             value={cabangId}
             onChange={(e) => setCabangId(e.target.value)}
             disabled={submitting}
           >
-            <option value="">Pilih cabang</option>
+            <option value="">Pilih {labelSingular.toLowerCase()}</option>
             {cabangOptions.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.namaCabang}
               </option>
             ))}
           </select>
-          {errors.cabangId && <p className="text-[11px] text-status-danger mt-1">{errors.cabangId}</p>}
+          {errors.cabangId && (
+            <p className="text-[11px] text-status-danger mt-1">{errors.cabangId}</p>
+          )}
         </div>
 
         <div>
@@ -202,7 +210,9 @@ export default function PesananCabangFormModal({ open, onClose, onSubmit }: Pesa
                     >
                       <option value="">Satuan</option>
                       {satuanOptions.map((s) => (
-                        <option key={s.id} value={s.kodeSatuan}>{s.kodeSatuan} — {s.namaSatuan}</option>
+                        <option key={s.id} value={s.kodeSatuan}>
+                          {s.kodeSatuan} — {s.namaSatuan}
+                        </option>
                       ))}
                     </select>
                     <button

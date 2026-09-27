@@ -6,6 +6,8 @@ interface CabangDetailModalProps {
   open: boolean;
   item: Cabang | null;
   onClose: () => void;
+  /** Label dinamis: "Cabang" (Fotosnaps) atau "Event" (Burger Chill / Keripik Bujangan) */
+  labelSingular?: string;
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -17,12 +19,20 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default function CabangDetailModal({ open, item, onClose }: CabangDetailModalProps) {
+export default function CabangDetailModal({
+  open,
+  item,
+  onClose,
+  labelSingular = 'Cabang',
+}: CabangDetailModalProps) {
   if (!item) return null;
+
+  const labelKode = labelSingular === 'Event' ? 'Kode Event' : 'Kode Cabang';
+  const labelNama = labelSingular === 'Event' ? 'Nama Event' : 'Nama Cabang';
 
   return (
     <Modal
-      title="Detail Cabang"
+      title={`Detail ${labelSingular}`}
       open={open}
       onClose={onClose}
       footer={
@@ -32,8 +42,8 @@ export default function CabangDetailModal({ open, item, onClose }: CabangDetailM
       }
     >
       <div>
-        <Row label="Kode Cabang" value={item.kodeCabang} />
-        <Row label="Nama Cabang" value={item.namaCabang} />
+        <Row label={labelKode} value={item.kodeCabang} />
+        <Row label={labelNama} value={item.namaCabang} />
         <Row label="Telepon" value={item.telepon} />
         <Row label="Alamat" value={item.alamat} />
         <Row

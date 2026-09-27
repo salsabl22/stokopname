@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Pencil, Eye, Trash2, GitBranch, RefreshCcw } from 'lucide-react';
+import { Plus, Search, Pencil, Eye, Trash2, GitBranch, CalendarDays, RefreshCcw } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import CabangFormModal from './CabangFormModal';
 import CabangDetailModal from './CabangDetailModal';
 import type { Cabang, CabangFormValues, StatusCabang } from '../../../types/cabang';
@@ -11,7 +12,19 @@ import { createCabang, deleteCabang, fetchCabang, updateCabang } from '../../../
 
 type StatusFilter = 'semua' | StatusCabang;
 
+/** Unit bisnis yang menggunakan istilah "Event" sebagai pengganti "Cabang" */
+const UNIT_PAKAI_EVENT = ['BURGER_CHILL', 'KERIPIK_BUJANGAN'];
+
 export default function CabangPage() {
+  const { activeUnit } = useBusinessUnit();
+  const pakaiEvent = UNIT_PAKAI_EVENT.includes(activeUnit);
+
+  // Label dinamis: "Event" untuk Burger Chill & Keripik Bujangan, "Cabang" untuk Fotosnaps
+  const labelSingular = pakaiEvent ? 'Event' : 'Cabang';
+  const labelKode = pakaiEvent ? 'Kode Event' : 'Kode Cabang';
+  const labelNama = pakaiEvent ? 'Nama Event' : 'Nama Cabang';
+  const IconKomponen = pakaiEvent ? CalendarDays : GitBranch;
+
   const [data, setData] = useState<Cabang[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +46,7 @@ export default function CabangPage() {
     try {
       setData(await fetchCabang());
     } catch {
-      setError('Gagal memuat data cabang. Silakan coba lagi.');
+      setError(`Gagal memuat data ${labelSingular.toLowerCase()}. Silakan coba lagi.`);
     } finally {
       setLoading(false);
     }
@@ -66,11 +79,10 @@ export default function CabangPage() {
   async function handleFormSubmit(values: CabangFormValues) {
     if (editingItem) {
       await updateCabang(editingItem.id, values);
-      showToast('success', 'Cabang berhasil diperbarui.');
+      showToast('success', `${labelSingular} berhasil diperbarui.`);
     } else {
       await createCabang(values);
-      // Sesuai flow map: notifikasi "Cabang berhasil disimpan" setelah Simpan.
-      showToast('success', 'Cabang berhasil disimpan.');
+      showToast('success', `${labelSingular} berhasil disimpan.`);
     }
     await loadData();
   }
@@ -82,7 +94,7 @@ export default function CabangPage() {
       await deleteCabang(deleteTarget.id);
       await loadData();
       setDeleteTarget(null);
-      showToast('success', 'Cabang berhasil dihapus.');
+      showToast('success', `${labelSingular} berhasil dihapus.`);
     } finally {
       setDeleting(false);
     }
@@ -98,7 +110,7 @@ export default function CabangPage() {
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari kode atau nama cabang..."
+              placeholder={`Cari kode atau nama ${labelSingular.toLowerCase()}...`}
               className="input-field pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -117,7 +129,7 @@ export default function CabangPage() {
             </select>
             <button type="button" className="btn-primary" onClick={openAddForm}>
               <Plus size={14} />
-              Tambah Cabang
+              Tambah {labelSingular}
             </button>
           </div>
         </div>
@@ -125,16 +137,21 @@ export default function CabangPage() {
         {loading ? (
           <TableSkeleton />
         ) : error ? (
-          <ErrorState message={error} onRetry={loadData} />
+          <ErrorState message={error} onRetry={loadData} Icon={IconKomponen} />
         ) : filteredData.length === 0 ? (
-          <EmptyState hasFilter={Boolean(searchTerm) || statusFilter !== 'semua'} onAdd={openAddForm} />
+          <EmptyState
+            hasFilter={Boolean(searchTerm) || statusFilter !== 'semua'}
+            onAdd={openAddForm}
+            labelSingular={labelSingular}
+            Icon={IconKomponen}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[11px] uppercase tracking-wide text-slate-400 border-b border-surface-border">
-                  <th className="px-4 py-2.5 font-medium">Kode Cabang</th>
-                  <th className="px-4 py-2.5 font-medium">Nama Cabang</th>
+                  <th className="px-4 py-2.5 font-medium">{labelKode}</th>
+                  <th className="px-4 py-2.5 font-medium">{labelNama}</th>
                   <th className="px-4 py-2.5 font-medium">Telepon</th>
                   <th className="px-4 py-2.5 font-medium">Alamat</th>
                   <th className="px-4 py-2.5 font-medium">Status</th>
@@ -179,14 +196,20 @@ export default function CabangPage() {
         editingItem={editingItem}
         onClose={() => setFormOpen(false)}
         onSubmit={handleFormSubmit}
+        labelSingular={labelSingular}
       />
 
-      <CabangDetailModal open={Boolean(detailItem)} item={detailItem} onClose={() => setDetailItem(null)} />
+      <CabangDetailModal
+        open={Boolean(detailItem)}
+        item={detailItem}
+        onClose={() => setDetailItem(null)}
+        labelSingular={labelSingular}
+      />
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title="Hapus Cabang"
-        description={`Data cabang "${deleteTarget?.namaCabang ?? ''}" akan dihapus permanen dan tidak dapat dikembalikan. Lanjutkan?`}
+        title={`Hapus ${labelSingular}`}
+        description={`Data ${labelSingular.toLowerCase()} "${deleteTarget?.namaCabang ?? ''}" akan dihapus permanen dan tidak dapat dikembalikan. Lanjutkan?`}
         confirmLabel="Ya, Hapus"
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
@@ -234,35 +257,53 @@ function TableSkeleton() {
   );
 }
 
-function EmptyState({ hasFilter, onAdd }: { hasFilter: boolean; onAdd: () => void }) {
+function EmptyState({
+  hasFilter,
+  onAdd,
+  labelSingular,
+  Icon,
+}: {
+  hasFilter: boolean;
+  onAdd: () => void;
+  labelSingular: string;
+  Icon: React.ElementType;
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-        <GitBranch size={20} className="text-slate-400" />
+        <Icon size={20} className="text-slate-400" />
       </div>
       <p className="text-sm font-medium text-slate-700">
-        {hasFilter ? 'Data tidak ditemukan' : 'Belum ada cabang'}
+        {hasFilter ? 'Data tidak ditemukan' : `Belum ada ${labelSingular.toLowerCase()}`}
       </p>
       <p className="text-xs text-slate-400 mt-1 max-w-xs">
         {hasFilter
           ? 'Coba ubah kata kunci pencarian atau filter status.'
-          : 'Tambahkan cabang pertama untuk mulai mengelola distribusi.'}
+          : `Tambahkan ${labelSingular.toLowerCase()} pertama untuk mulai mengelola distribusi.`}
       </p>
       {!hasFilter && (
         <button type="button" className="btn-primary mt-4" onClick={onAdd}>
           <Plus size={14} />
-          Tambah Cabang
+          Tambah {labelSingular}
         </button>
       )}
     </div>
   );
 }
 
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ErrorState({
+  message,
+  onRetry,
+  Icon,
+}: {
+  message: string;
+  onRetry: () => void;
+  Icon: React.ElementType;
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       <div className="w-12 h-12 rounded-full bg-status-dangerBg flex items-center justify-center mb-3">
-        <GitBranch size={20} className="text-status-danger" />
+        <Icon size={20} className="text-status-danger" />
       </div>
       <p className="text-sm font-medium text-slate-700">Terjadi kesalahan</p>
       <p className="text-xs text-slate-400 mt-1 max-w-xs">{message}</p>

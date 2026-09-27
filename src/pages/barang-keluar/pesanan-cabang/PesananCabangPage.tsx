@@ -3,13 +3,21 @@ import { Plus, Search, ShoppingCart, RefreshCcw } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import PesananCabangFormModal from './PesananCabangFormModal';
 import type { PesananCabang, PesananCabangFormValues } from '../../../types/pesananCabang';
 import { STATUS_SO_LABEL, STATUS_SO_TONE } from '../../../utils/statusSO';
 import { createPesananCabang, fetchAllPesananCabang } from '../../../services/pesananCabangService';
 import { fetchProduk } from '../../../services/produkService';
 
+/** Unit bisnis yang menggunakan istilah "Event" sebagai pengganti "Cabang" */
+const UNIT_PAKAI_EVENT = ['BURGER_CHILL', 'KERIPIK_BUJANGAN'];
+
 export default function PesananCabangPage() {
+  const { activeUnit } = useBusinessUnit();
+  const pakaiEvent = UNIT_PAKAI_EVENT.includes(activeUnit);
+  const labelSingular = pakaiEvent ? 'Event' : 'Cabang';
+
   const [data, setData] = useState<PesananCabang[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +32,7 @@ export default function PesananCabangPage() {
     try {
       setData(await fetchAllPesananCabang());
     } catch {
-      setError('Gagal memuat data pesanan cabang. Silakan coba lagi.');
+      setError(`Gagal memuat data pesanan ${labelSingular.toLowerCase()}. Silakan coba lagi.`);
     } finally {
       setLoading(false);
     }
@@ -48,7 +56,7 @@ export default function PesananCabangPage() {
     const produkList = await fetchProduk();
     await createPesananCabang(values, cabangNama, produkList);
     await loadData();
-    showToast('success', 'Pesanan cabang berhasil disimpan. Lanjut ke tahap Alokasi.');
+    showToast('success', `Pesanan ${labelSingular.toLowerCase()} berhasil disimpan. Lanjut ke tahap Alokasi.`);
   }
 
   return (
@@ -61,7 +69,7 @@ export default function PesananCabangPage() {
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari nomor pesanan atau cabang..."
+              placeholder={`Cari nomor pesanan atau ${labelSingular.toLowerCase()}...`}
               className="input-field pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -69,7 +77,7 @@ export default function PesananCabangPage() {
           </div>
           <button type="button" className="btn-primary" onClick={() => setFormOpen(true)}>
             <Plus size={14} />
-            Buat Pesanan Cabang
+            Buat Pesanan {labelSingular}
           </button>
         </div>
 
@@ -78,14 +86,18 @@ export default function PesananCabangPage() {
         ) : error ? (
           <ErrorState message={error} onRetry={loadData} />
         ) : filteredData.length === 0 ? (
-          <EmptyState hasFilter={Boolean(searchTerm)} onAdd={() => setFormOpen(true)} />
+          <EmptyState
+            hasFilter={Boolean(searchTerm)}
+            onAdd={() => setFormOpen(true)}
+            labelSingular={labelSingular}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[11px] uppercase tracking-wide text-slate-400 border-b border-surface-border">
                   <th className="px-4 py-2.5 font-medium">Nomor Pesanan</th>
-                  <th className="px-4 py-2.5 font-medium">Cabang</th>
+                  <th className="px-4 py-2.5 font-medium">{labelSingular}</th>
                   <th className="px-4 py-2.5 font-medium">Item</th>
                   <th className="px-4 py-2.5 font-medium">Status</th>
                 </tr>
@@ -107,7 +119,12 @@ export default function PesananCabangPage() {
         )}
       </div>
 
-      <PesananCabangFormModal open={formOpen} onClose={() => setFormOpen(false)} onSubmit={handleFormSubmit} />
+      <PesananCabangFormModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleFormSubmit}
+        labelSingular={labelSingular}
+      />
     </div>
   );
 }
@@ -122,22 +139,32 @@ function TableSkeleton() {
   );
 }
 
-function EmptyState({ hasFilter, onAdd }: { hasFilter: boolean; onAdd: () => void }) {
+function EmptyState({
+  hasFilter,
+  onAdd,
+  labelSingular,
+}: {
+  hasFilter: boolean;
+  onAdd: () => void;
+  labelSingular: string;
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
         <ShoppingCart size={20} className="text-slate-400" />
       </div>
       <p className="text-sm font-medium text-slate-700">
-        {hasFilter ? 'Data tidak ditemukan' : 'Belum ada pesanan cabang'}
+        {hasFilter ? 'Data tidak ditemukan' : `Belum ada pesanan ${labelSingular.toLowerCase()}`}
       </p>
       <p className="text-xs text-slate-400 mt-1 max-w-xs">
-        {hasFilter ? 'Coba ubah kata kunci pencarian.' : 'Buat pesanan pertama dari cabang.'}
+        {hasFilter
+          ? 'Coba ubah kata kunci pencarian.'
+          : `Buat pesanan pertama dari ${labelSingular.toLowerCase()}.`}
       </p>
       {!hasFilter && (
         <button type="button" className="btn-primary mt-4" onClick={onAdd}>
           <Plus size={14} />
-          Buat Pesanan Cabang
+          Buat Pesanan {labelSingular}
         </button>
       )}
     </div>

@@ -4,6 +4,8 @@
  * terbaca dari localStorage dengan benar.
  */
 import type { StokItem } from '../types/persediaan';
+import { fetchAllPO } from './barangMasukService';
+import { fetchAllPesananCabang } from './pesananCabangService';
 
 function getApiBase(): string {
   const unit = localStorage.getItem('wms_unit_bisnis');
@@ -40,7 +42,9 @@ function mapInventory(inv: any): StokItem {
     produkId: inv.produkId,
     produkKode: inv.produk?.kodeProduk ?? '-',
     produkNama: inv.produk?.namaProduk ?? '-',
-    satuan: inv.produk?.satuan?.kode ?? inv.produk?.satuan?.nama ?? 'PCS',
+    // Prioritaskan satuan yang tersimpan di inventory record (seharusnya
+    // sesuai dengan satuan PO), fallback ke satuan produk jika field kosong.
+    satuan: inv.satuan || inv.produk?.satuan?.kode || inv.produk?.satuan?.nama || 'PCS',
     batchNomor: inv.batch?.nomorBatch,
     jumlahTersedia: inv.jumlahTersedia,
     jumlahDialokasikan: inv.jumlahDialokasikan,
@@ -53,9 +57,45 @@ function mapInventory(inv: any): StokItem {
 }
 
 export async function fetchPersediaan(): Promise<StokItem[]> {
-  const res = await fetch(`${getApiBase()}/operasional/inventory`, { headers: authHeaders() });
-  const data = await handleResponse(res);
-  return (data as any[]).map(mapInventory).sort((a, b) => a.produkNama.localeCompare(b.produkNama));
+  const [resInv, pos, sos] = await Promise.all([
+    fetch(`${getApiBase()}/operasional/inventory`, { headers: authHeaders() }).then(handleResponse),
+    fetchAllPO(),
+    fetchAllPesananCabang(),
+  ]);
+  
+  let data = (resInv as any[]).map(mapInventory);
+
+  // Perhitungan real-time: Penyimpanan - Pesanan Cabang
+  const poDisimpan = pos.filter((po) => po.status === 'disimpan');
+  const soValid = sos.filter((so) => so.status !== 'dibatalkan' && so.status !== 'gagal_kirim');
+
+  data = data.map((inv) => {
+    let totalIn = 0;
+    poDisimpan.forEach((po) => {
+      po.items.forEach((it) => {
+        if (it.produkId === inv.produkId) {
+          totalIn += (it.jumlahDiterima ?? it.jumlahPesan);
+        }
+      });
+    });
+
+    let totalOut = 0;
+    soValid.forEach((so) => {
+      so.items.forEach((it) => {
+        if (it.produkId === inv.produkId) {
+          totalOut += (it.jumlahDipesan || 0);
+        }
+      });
+    });
+
+    return {
+      ...inv,
+      // override jumlahTersedia dari backend dengan kalkulasi frontend real-time
+      jumlahTersedia: totalIn - totalOut,
+    };
+  });
+
+  return data.sort((a, b) => a.produkNama.localeCompare(b.produkNama));
 }
 
 export async function fetchStokByProduk(produkId: string): Promise<StokItem | undefined> {

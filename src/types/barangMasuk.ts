@@ -59,6 +59,7 @@ export interface PesananPembelian {
 
 export interface POItemFormValues {
   produkId: string;
+  satuan: string;
   jumlah: string;
   hargaSatuan: string;
 }

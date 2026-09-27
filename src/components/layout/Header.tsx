@@ -1,15 +1,18 @@
 import { useLocation } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
-import { NAV_GROUPS } from './Sidebar';
+import { buildNavGroups } from './Sidebar';
 import { resolveBreadcrumb } from '../../utils/breadcrumb';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBusinessUnit } from '../../contexts/BusinessUnitContext';
 
 export default function Header() {
   const location = useLocation();
-  const breadcrumb = resolveBreadcrumb(location.pathname, NAV_GROUPS);
   const { user, logout } = useAuth();
-  const { activeUnitInfo } = useBusinessUnit();
+  const { activeUnit, activeUnitInfo } = useBusinessUnit();
+
+  // Bangun nav groups dinamis berdasarkan unit bisnis aktif (agar breadcrumb "Cabang"/"Event" sesuai)
+  const navGroups = buildNavGroups(activeUnit);
+  const breadcrumb = resolveBreadcrumb(location.pathname, navGroups);
 
   // Resolve user role label
   const roleLabel = (() => {
@@ -28,12 +31,6 @@ export default function Header() {
         <h1 className="text-sm font-semibold text-slate-800">{breadcrumb.label}</h1>
       </div>
 
-      {/* Business Unit Badge */}
-      <div className="hidden sm:flex items-center gap-2">
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${activeUnitInfo.bgColor} ${activeUnitInfo.color}`}>
-          {activeUnitInfo.label}
-        </span>
-      </div>
 
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2.5 pl-4 border-l border-surface-border">

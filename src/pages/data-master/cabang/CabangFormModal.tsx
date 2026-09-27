@@ -9,6 +9,8 @@ interface CabangFormModalProps {
   editingItem: Cabang | null;
   onClose: () => void;
   onSubmit: (values: CabangFormValues) => Promise<void>;
+  /** Label dinamis: "Cabang" (Fotosnaps) atau "Event" (Burger Chill / Keripik Bujangan) */
+  labelSingular?: string;
 }
 
 export default function CabangFormModal({
@@ -16,6 +18,7 @@ export default function CabangFormModal({
   editingItem,
   onClose,
   onSubmit,
+  labelSingular = 'Cabang',
 }: CabangFormModalProps) {
   const [values, setValues] = useState<CabangFormValues>(EMPTY_CABANG_FORM);
   const [errors, setErrors] = useState<CabangFormErrors>({});
@@ -47,7 +50,6 @@ export default function CabangFormModal({
 
   async function handleSubmit() {
     setSubmitError(null);
-    // Urutan sesuai flow map: cek kode duplikat dulu, baru cek kelengkapan.
     const validationErrors = await validateCabangForm(values, editingItem?.id);
     setErrors(validationErrors);
     if (!isCabangFormValid(validationErrors)) return;
@@ -63,9 +65,16 @@ export default function CabangFormModal({
     }
   }
 
+  // Label field dinamis
+  const labelKode = labelSingular === 'Event' ? 'Kode Event' : 'Kode Cabang';
+  const labelNama = labelSingular === 'Event' ? 'Nama Event' : 'Nama Cabang';
+  const placeholderKode = labelSingular === 'Event' ? 'Contoh: EVT-001' : 'Contoh: CBG-BDG';
+  const placeholderNama = labelSingular === 'Event' ? 'Contoh: Bazar Kemerdekaan' : 'Contoh: Cabang Bandung';
+  const placeholderAlamat = labelSingular === 'Event' ? 'Lokasi event' : 'Alamat lengkap cabang';
+
   return (
     <Modal
-      title={isEdit ? 'Edit Cabang' : 'Tambah Cabang'}
+      title={isEdit ? `Edit ${labelSingular}` : `Tambah ${labelSingular}`}
       open={open}
       onClose={onClose}
       footer={
@@ -87,11 +96,11 @@ export default function CabangFormModal({
         )}
 
         <div>
-          <label className="label-field">Kode Cabang</label>
+          <label className="label-field">{labelKode}</label>
           <input
             type="text"
             className="input-field"
-            placeholder="Contoh: CBG-BDG"
+            placeholder={placeholderKode}
             value={values.kodeCabang}
             onChange={(e) => handleChange('kodeCabang', e.target.value)}
             disabled={submitting}
@@ -100,11 +109,11 @@ export default function CabangFormModal({
         </div>
 
         <div>
-          <label className="label-field">Nama Cabang</label>
+          <label className="label-field">{labelNama}</label>
           <input
             type="text"
             className="input-field"
-            placeholder="Contoh: Cabang Bandung"
+            placeholder={placeholderNama}
             value={values.namaCabang}
             onChange={(e) => handleChange('namaCabang', e.target.value)}
             disabled={submitting}
@@ -130,7 +139,7 @@ export default function CabangFormModal({
           <textarea
             className="input-field resize-none"
             rows={2}
-            placeholder="Alamat lengkap cabang"
+            placeholder={placeholderAlamat}
             value={values.alamat}
             onChange={(e) => handleChange('alamat', e.target.value)}
             disabled={submitting}

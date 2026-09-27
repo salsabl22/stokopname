@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown } from 'lucide-react';
 import Modal from '../../../components/ui/Modal';
 import type {
   PesananPembelianFormErrors,
@@ -10,8 +10,10 @@ import { isPesananPembelianFormValid, validatePesananPembelianForm } from '../..
 import { formatRupiah } from '../../../utils/statusPO';
 import { fetchPemasok } from '../../../services/pemasokService';
 import { fetchProduk } from '../../../services/produkService';
+import { fetchSatuanBarang } from '../../../services/satuanBarangService';
 import type { Pemasok } from '../../../types/pemasok';
 import type { Produk } from '../../../types/produk';
+import type { SatuanBarang } from '../../../types/satuanBarang';
 
 interface PesananPembelianFormModalProps {
   open: boolean;
@@ -19,7 +21,12 @@ interface PesananPembelianFormModalProps {
   onSubmit: (values: PesananPembelianFormValues, pemasokNama: string) => Promise<void>;
 }
 
-const EMPTY_ITEM: POItemFormValues = { produkId: '', jumlah: '', hargaSatuan: '' };
+const EMPTY_ITEM: POItemFormValues = { produkId: '', satuan: '', jumlah: '', hargaSatuan: '' };
+
+/** Satuan default yang otomatis dipilih saat sebuah produk dipilih. */
+function getDefaultSatuanKode(produk?: Produk): string {
+  return produk?.satuanPembelian?.kode ?? produk?.satuan?.kode ?? '';
+}
 
 export default function PesananPembelianFormModal({
   open,
@@ -33,18 +40,35 @@ export default function PesananPembelianFormModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pemasokOptions, setPemasokOptions] = useState<Pemasok[]>([]);
   const [produkOptions, setProdukOptions] = useState<Produk[]>([]);
+  const [satuanBarangOptions, setSatuanBarangOptions] = useState<SatuanBarang[]>([]);
+  const [satuanDropdownOpen, setSatuanDropdownOpen] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setPemasokId('');
     setItems([{ ...EMPTY_ITEM }]);
     setErrors({});
+    setSubmitError(null);
+    setSatuanDropdownOpen(null);
     fetchPemasok().then((data) => setPemasokOptions(data.filter((p) => p.status === 'aktif')));
     fetchProduk().then((data) => setProdukOptions(data.filter((p) => p.status === 'aktif')));
+    fetchSatuanBarang().then((data) =>
+      setSatuanBarangOptions(data.filter((s: SatuanBarang) => s.status === 'aktif'))
+    );
   }, [open]);
 
   function updateItem(index: number, patch: Partial<POItemFormValues>) {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
+  }
+
+  function handleProdukChange(index: number, produkId: string) {
+    const produk = produkOptions.find((p) => p.id === produkId);
+    updateItem(index, { produkId, satuan: getDefaultSatuanKode(produk) });
+  }
+
+  function selectSatuan(index: number, kode: string) {
+    updateItem(index, { satuan: kode });
+    setSatuanDropdownOpen(null);
   }
 
   function addItem() {
@@ -130,10 +154,11 @@ export default function PesananPembelianFormModal({
           <div className="space-y-2">
             {items.map((item, index) => (
               <div key={index} className="grid grid-cols-12 gap-2 items-start">
+                {/* Kolom Produk */}
                 <select
-                  className="input-field col-span-5"
+                  className="input-field col-span-4"
                   value={item.produkId}
-                  onChange={(e) => updateItem(index, { produkId: e.target.value })}
+                  onChange={(e) => handleProdukChange(index, e.target.value)}
                   disabled={submitting}
                 >
                   <option value="">Pilih produk</option>
@@ -143,15 +168,65 @@ export default function PesananPembelianFormModal({
                     </option>
                   ))}
                 </select>
+
+                {/* Kolom Jumlah */}
                 <input
                   type="number"
                   min={0}
-                  className="input-field col-span-3"
+                  className="input-field col-span-2"
                   placeholder="Jumlah"
                   value={item.jumlah}
                   onChange={(e) => updateItem(index, { jumlah: e.target.value })}
                   disabled={submitting}
                 />
+
+                {/* Dropdown Satuan dari Satuan Barang */}
+                <div className="col-span-2 relative">
+                  <button
+                    type="button"
+                    className="input-field w-full flex items-center justify-between gap-1 text-left"
+                    onClick={() =>
+                      setSatuanDropdownOpen(satuanDropdownOpen === index ? null : index)
+                    }
+                    disabled={submitting}
+                  >
+                    <span className={item.satuan ? 'text-slate-800' : 'text-slate-400'}>
+                      {item.satuan || 'Satuan'}
+                    </span>
+                    <ChevronDown
+                      size={12}
+                      className={`shrink-0 transition-transform ${satuanDropdownOpen === index ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {satuanDropdownOpen === index && (
+                    <div className="absolute bottom-full left-0 min-w-[140px] mb-0.5 bg-white border border-surface-border rounded-md shadow-lg z-50 max-h-40 overflow-y-auto">
+                      {satuanBarangOptions.length === 0 ? (
+                        <p className="px-3 py-2 text-[11px] text-slate-400">
+                          Belum ada satuan barang aktif.
+                        </p>
+                      ) : (
+                        satuanBarangOptions.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className={`w-full text-left px-3 py-1.5 text-xs transition-colors hover:bg-slate-50 ${
+                              item.satuan === s.kodeSatuan
+                                ? 'bg-brand-600/10 text-brand-700 font-medium'
+                                : 'text-slate-700'
+                            }`}
+                            onClick={() => selectSatuan(index, s.kodeSatuan)}
+                          >
+                            <span className="font-medium">{s.kodeSatuan}</span>
+                            <span className="text-slate-400 ml-1">— {s.namaSatuan}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Kolom Harga Satuan */}
                 <input
                   type="number"
                   min={0}
@@ -161,6 +236,8 @@ export default function PesananPembelianFormModal({
                   onChange={(e) => updateItem(index, { hargaSatuan: e.target.value })}
                   disabled={submitting}
                 />
+
+                {/* Tombol Hapus */}
                 <button
                   type="button"
                   className="col-span-1 w-7 h-7 flex items-center justify-center rounded-md text-slate-400 hover:text-status-danger hover:bg-status-dangerBg mt-0.5"

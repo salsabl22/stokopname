@@ -5,9 +5,10 @@ import { fetchAllPO } from '../../services/barangMasukService';
 import { fetchAllPesananCabang } from '../../services/pesananCabangService';
 import { fetchAllRetur } from '../../services/returService';
 import { fetchStockMovements } from '../../services/stockMovementService';
+import { fetchWastes, fetchExceptions } from '../../services/pengendalianService';
 import { exportToPdf, exportToExcel } from '../../utils/exportUtils';
 
-type TipeLaporan = 'persediaan' | 'barang_masuk' | 'barang_keluar' | 'retur' | 'aktivitas';
+type TipeLaporan = 'persediaan' | 'barang_masuk' | 'barang_keluar' | 'retur' | 'aktivitas' | 'pengembalian' | 'waste';
 
 const LAPORAN_TABS: { id: TipeLaporan; label: string; icon: React.ReactNode }[] = [
   { id: 'persediaan', label: 'Persediaan', icon: <Package size={15} /> },
@@ -15,6 +16,8 @@ const LAPORAN_TABS: { id: TipeLaporan; label: string; icon: React.ReactNode }[] 
   { id: 'barang_keluar', label: 'Barang Keluar (SO)', icon: <ArrowUp size={15} /> },
   { id: 'retur', label: 'Retur', icon: <RefreshCcw size={15} /> },
   { id: 'aktivitas', label: 'Pergerakan Stok', icon: <TrendingUp size={15} /> },
+  { id: 'pengembalian', label: 'Pengembalian Supplier', icon: <RefreshCcw size={15} /> },
+  { id: 'waste', label: 'Waste', icon: <Package size={15} /> },
 ];
 
 async function loadDataForTab(tab: TipeLaporan): Promise<any[]> {
@@ -26,11 +29,6 @@ async function loadDataForTab(tab: TipeLaporan): Promise<any[]> {
         produkNama: item.produkNama,
         satuan: item.satuan,
         jumlahTersedia: item.jumlahTersedia,
-        jumlahDialokasikan: item.jumlahDialokasikan,
-        jumlahKarantina: item.jumlahKarantina,
-        jumlahWaste: item.jumlahWaste,
-        minimumStok: item.minimumStok,
-        lokasiPenyimpanan: item.lokasiPenyimpanan,
         updatedAt: new Date(item.updatedAt).toLocaleString('id-ID'),
       }));
     }
@@ -40,7 +38,11 @@ async function loadDataForTab(tab: TipeLaporan): Promise<any[]> {
         nomorPO: item.nomorPO,
         tanggal: new Date(item.tanggal).toLocaleString('id-ID'),
         pemasokNama: item.pemasokNama,
-        totalItem: item.items.length,
+        produk: item.items.map((i: any) => i.produkNama).join(', '),
+        // Menampilkan jumlah & satuan per item
+        jmlItem: item.items
+          .map((i: any) => `${i.produkNama}: ${i.jumlahPesan} ${i.satuan || '-'}`)
+          .join(' | '),
         totalPesanan: item.totalPesanan.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' }),
         status: item.status,
         hasilQC: item.hasilQC || '-',
@@ -53,7 +55,11 @@ async function loadDataForTab(tab: TipeLaporan): Promise<any[]> {
         nomorPesanan: item.nomorPesanan,
         tanggal: new Date(item.tanggal).toLocaleString('id-ID'),
         cabangNama: item.cabangNama,
-        totalItem: item.items.length,
+        produk: item.items.map((i: any) => i.produkNama).join(', '),
+        // Menampilkan jumlah & satuan per item
+        jmlItem: item.items
+          .map((i: any) => `${i.produkNama}: ${i.jumlahDipesan ?? i.jumlahDikirim ?? i.jumlahPesan ?? i.jumlah ?? '-'} ${i.satuan || '-'}`)
+          .join(' | '),
         status: item.status,
         createdAt: new Date(item.createdAt).toLocaleString('id-ID'),
       }));
@@ -64,6 +70,8 @@ async function loadDataForTab(tab: TipeLaporan): Promise<any[]> {
         nomorRetur: item.nomorRetur,
         tanggal: new Date(item.tanggal).toLocaleString('id-ID'),
         sumber: item.sumber === 'cabang' ? `Cabang: ${item.cabangNama}` : `Internal: ${item.poNomor ?? '-'}`,
+        produk: item.items.map((i: any) => i.produkNama).join(', '),
+        satuan: item.items.map((i: any) => i.satuan).join(', '),
         alasan: item.alasan,
         jumlahItem: item.items.length,
         status: item.status,
@@ -78,11 +86,37 @@ async function loadDataForTab(tab: TipeLaporan): Promise<any[]> {
         produkKode: item.produkKode,
         produkNama: item.produkNama,
         tipe: item.tipe,
-        jumlah: `${item.jumlah} ${item.satuan}`,
+        jumlah: item.jumlah,
+        satuan: item.satuan,
         sumber: item.sumber,
         tujuan: item.tujuan,
         referensi: item.referensi,
-        operator: item.operator || '-',
+      }));
+    }
+    case 'pengembalian': {
+      const list = await fetchExceptions();
+      return list.map((item) => ({
+        nomorEXC: item.nomorEXC || '-',
+        tanggal: new Date(item.createdAt).toLocaleString('id-ID'),
+        tipe: item.tipe?.replace(/_/g, ' ') || '-',
+        referensi: item.referensi || '-',
+        keterangan: item.keterangan || '-',
+        status: item.status === 'pending' ? 'Menunggu' : 'Selesai',
+      }));
+    }
+    case 'waste': {
+      const list = await fetchWastes();
+      return list.map((item) => ({
+        nomorWaste: item.nomorWaste,
+        tanggal: new Date(item.createdAt).toLocaleString('id-ID'),
+        produkNama: item.produk?.namaProduk || '-',
+        batch: item.batch?.nomorBatch || '-',
+        // Tampilkan jumlah & satuan bersama agar konsisten dengan satuan PO
+        jumlahSatuan: `${item.jumlah} ${item.satuan || '-'}`,
+        jumlah: item.jumlah,
+        satuan: item.satuan || '-',
+        alasan: item.alasan,
+        referensi: item.referensi || '-',
       }));
     }
     default:
@@ -96,18 +130,15 @@ const COLUMNS_MAP: Record<TipeLaporan, { header: string; key: string }[]> = {
     { header: 'Nama Produk', key: 'produkNama' },
     { header: 'Satuan', key: 'satuan' },
     { header: 'Tersedia', key: 'jumlahTersedia' },
-    { header: 'Dialokasikan', key: 'jumlahDialokasikan' },
-    { header: 'Karantina', key: 'jumlahKarantina' },
-    { header: 'Waste', key: 'jumlahWaste' },
-    { header: 'Min. Stok', key: 'minimumStok' },
-    { header: 'Lokasi', key: 'lokasiPenyimpanan' },
     { header: 'Diperbarui', key: 'updatedAt' },
   ],
   barang_masuk: [
     { header: 'Nomor PO', key: 'nomorPO' },
     { header: 'Tanggal', key: 'tanggal' },
     { header: 'Supplier', key: 'pemasokNama' },
-    { header: 'Jml Item', key: 'totalItem' },
+    { header: 'Produk', key: 'produk' },
+    // Jml Item menampilkan nama produk + jumlah + satuan dari PO
+    { header: 'Jml Item (Satuan)', key: 'jmlItem' },
     { header: 'Total Nilai', key: 'totalPesanan' },
     { header: 'Status', key: 'status' },
     { header: 'Hasil QC', key: 'hasilQC' },
@@ -116,13 +147,17 @@ const COLUMNS_MAP: Record<TipeLaporan, { header: string; key: string }[]> = {
     { header: 'Nomor SO', key: 'nomorPesanan' },
     { header: 'Tanggal', key: 'tanggal' },
     { header: 'Cabang', key: 'cabangNama' },
-    { header: 'Jml Item', key: 'totalItem' },
+    { header: 'Produk', key: 'produk' },
+    // Jml Item menampilkan nama produk + jumlah + satuan
+    { header: 'Jml Item (Satuan)', key: 'jmlItem' },
     { header: 'Status', key: 'status' },
   ],
   retur: [
     { header: 'Nomor Retur', key: 'nomorRetur' },
     { header: 'Tanggal', key: 'tanggal' },
     { header: 'Sumber', key: 'sumber' },
+    { header: 'Produk', key: 'produk' },
+    { header: 'Satuan', key: 'satuan' },
     { header: 'Alasan', key: 'alasan' },
     { header: 'Jml Item', key: 'jumlahItem' },
     { header: 'Status', key: 'status' },
@@ -134,10 +169,28 @@ const COLUMNS_MAP: Record<TipeLaporan, { header: string; key: string }[]> = {
     { header: 'Nama Produk', key: 'produkNama' },
     { header: 'Tipe', key: 'tipe' },
     { header: 'Jumlah', key: 'jumlah' },
+    { header: 'Satuan', key: 'satuan' },
     { header: 'Dari', key: 'sumber' },
     { header: 'Ke', key: 'tujuan' },
     { header: 'Referensi', key: 'referensi' },
-    { header: 'Operator', key: 'operator' },
+  ],
+  pengembalian: [
+    { header: 'No. EXC', key: 'nomorEXC' },
+    { header: 'Waktu', key: 'tanggal' },
+    { header: 'Alasan', key: 'tipe' },
+    { header: 'Referensi', key: 'referensi' },
+    { header: 'Keterangan', key: 'keterangan' },
+    { header: 'Status', key: 'status' },
+  ],
+  waste: [
+    { header: 'No. Waste', key: 'nomorWaste' },
+    { header: 'Waktu', key: 'tanggal' },
+    { header: 'Produk', key: 'produkNama' },
+    { header: 'Batch', key: 'batch' },
+    // jumlahSatuan menampilkan "50 BOX" agar konsisten dengan satuan PO
+    { header: 'Jumlah (Satuan)', key: 'jumlahSatuan' },
+    { header: 'Alasan', key: 'alasan' },
+    { header: 'Referensi', key: 'referensi' },
   ],
 };
 
@@ -145,6 +198,7 @@ const STATUS_OPTIONS_MAP: Record<string, string[]> = {
   barang_masuk: ['menunggu_pengiriman', 'barang_datang', 'menunggu_qc', 'siap_penyimpanan', 'disimpan', 'karantina', 'retur', 'pengecualian'],
   barang_keluar: ['menunggu_alokasi', 'siap_diambil', 'siap_packing', 'siap_kirim', 'gagal_kirim', 'terkirim', 'pengecualian_pengambilan'],
   retur: ['diajukan', 'diterima', 'pengecualian', 'kembali_ke_stok', 'karantina', 'retur_pemasok'],
+  pengembalian: ['Menunggu', 'Selesai'],
 };
 
 export default function LaporanPage() {

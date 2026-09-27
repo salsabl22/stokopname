@@ -25,9 +25,7 @@ export interface Produk {
   /** Satuan pembelian (object dari SatuanBarang) */
   satuanPembelian?: SatuanBarang | null;
   satuanPembelianId?: string | null;
-  /** 1 satuanBeli = konversi * satuanDasar */
   konversi: number;
-  minimumStok: number;
   status: StatusProduk;
   deskripsi?: string | null;
   hargaBeli?: number | null;
@@ -45,13 +43,9 @@ export interface ProdukFormValues {
   satuanId: string;
   satuanPembelianId: string;
   konversi: string;
-  minimumStok: string;
   status: StatusProduk;
   deskripsi?: string;
   hargaBeli?: string;
-  // backward compat (string satuan, dipakai di modal lama)
-  satuan?: string;
-  satuanPembelian?: string;
 }
 
 export interface ProdukFormErrors {
@@ -59,10 +53,7 @@ export interface ProdukFormErrors {
   namaProduk?: string;
   kategori?: string;
   satuanId?: string;
-  satuan?: string;
-  satuanPembelian?: string;
   konversi?: string;
-  minimumStok?: string;
 }
 
 export const EMPTY_PRODUK_FORM: ProdukFormValues = {
@@ -72,7 +63,6 @@ export const EMPTY_PRODUK_FORM: ProdukFormValues = {
   satuanId: '',
   satuanPembelianId: '',
   konversi: '1',
-  minimumStok: '0',
   status: 'aktif',
   deskripsi: '',
   hargaBeli: '',

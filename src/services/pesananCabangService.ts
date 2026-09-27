@@ -43,6 +43,8 @@ function mapSO(so: any): PesananCabang {
     })),
     status: so.status,
     catatan: so.catatan ?? undefined,
+    kurir: so.metodePengiriman ?? undefined,
+    nomorResi: so.keteranganPengiriman ? so.keteranganPengiriman.replace('No. Resi: ', '') : undefined,
     createdAt: so.createdAt,
     updatedAt: so.updatedAt,
   };

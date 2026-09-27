@@ -19,11 +19,12 @@ export function validatePesananPembelianForm(
     return errors;
   }
 
-  const hasInvalidItem = values.items.some((item) => {
+    const hasInvalidItem = values.items.some((item) => {
     const jumlah = Number(item.jumlah);
     const harga = Number(item.hargaSatuan);
     return (
       !item.produkId ||
+      !item.satuan.trim() ||
       !item.jumlah.trim() ||
       Number.isNaN(jumlah) ||
       jumlah <= 0 ||
@@ -34,7 +35,7 @@ export function validatePesananPembelianForm(
   });
 
   if (hasInvalidItem) {
-    errors.items = 'Setiap produk harus dipilih dengan jumlah dan harga satuan lebih besar dari 0.';
+    errors.items = 'Setiap produk harus dipilih lengkap dengan satuan, jumlah, dan harga satuan lebih besar dari 0.';
   }
 
   return errors;

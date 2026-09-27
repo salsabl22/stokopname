@@ -165,6 +165,7 @@ export default function PergerakanStokPage() {
                   <th className="px-4 py-2.5 font-medium">Tipe</th>
                   <th className="px-4 py-2.5 font-medium">Produk</th>
                   <th className="px-4 py-2.5 font-medium">Jumlah</th>
+                  <th className="px-4 py-2.5 font-medium">Satuan</th>
                   <th className="px-4 py-2.5 font-medium">Alur Mutasi (Dari &rarr; Ke)</th>
                   <th className="px-4 py-2.5 font-medium">Referensi / No. Dok</th>
                   <th className="px-4 py-2.5 font-medium">Keterangan</th>
@@ -186,7 +187,10 @@ export default function PergerakanStokPage() {
                       {m.produkNama} <span className="text-slate-400 font-normal">({m.produkKode})</span>
                     </td>
                     <td className="px-4 py-2.5 text-xs font-bold text-slate-800">
-                      {m.jumlah} {m.satuan}
+                      {m.jumlah}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-medium text-slate-800">
+                      {m.satuan}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-slate-600 max-w-xs">
                       <span className="text-slate-500">{m.sumber}</span> &rarr;{' '}

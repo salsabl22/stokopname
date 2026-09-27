@@ -7,6 +7,7 @@ import QCFormModal from './QCFormModal';
 import type { HasilQC, PesananPembelian } from '../../../types/barangMasuk';
 import { useMasterStatus } from '../../../hooks/useMasterStatus';
 import { fetchPOByStatus, prosesQC } from '../../../services/barangMasukService';
+import { createException } from '../../../services/pengendalianService';
 
 export default function PemeriksaanKualitasPage() {
   const [data, setData] = useState<PesananPembelian[]>([]);
@@ -48,6 +49,7 @@ export default function PemeriksaanKualitasPage() {
     if (!selectedPO) return;
     const result = await prosesQC(selectedPO.id, hasilQC, perluRepack, catatan);
     await loadData();
+
     if (hasilQC === 'baik') {
       showToast(
         'success',
@@ -56,9 +58,22 @@ export default function PemeriksaanKualitasPage() {
           : `${result.nomorPO} lolos QC dan siap disimpan.`,
       );
     } else if (hasilQC === 'rusak') {
-      showToast('error', `${result.nomorPO} ditandai Rusak dan dipindahkan ke Karantina.`);
-    } else {
-      showToast('error', `${result.nomorPO} ditandai Ditolak dan akan diproses Retur.`);
+      // Otomatis catat ke Pengembalian ke Supplier
+      try {
+        const itemDetail = selectedPO.items
+          .map((it) => `${it.produkNama} (${it.jumlahDiterima ?? it.jumlahPesan} ${it.satuan})`)
+          .join(', ');
+
+        await createException({
+          tipe: 'BARANG_RUSAK_DARI_PEMASOK',
+          referensi: selectedPO.nomorPO,
+          keterangan: `Barang dinyatakan RUSAK saat QC${catatan ? ` — ${catatan}` : ''}. Produk: ${itemDetail}`,
+          alasanPengembalian: catatan || 'Barang rusak ditemukan saat pemeriksaan kualitas',
+        });
+        showToast('error', `${result.nomorPO} dinyatakan Rusak — otomatis masuk ke Pengembalian Supplier.`);
+      } catch {
+        showToast('error', `${result.nomorPO} ditandai Rusak dan dipindahkan ke Karantina.`);
+      }
     }
   }
 

@@ -77,11 +77,10 @@ export default function PenerimaanFormModal({ open, po, onClose, onSubmit }: Pen
           <div className="flex gap-2">
             <button
               type="button"
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium border transition-colors ${
-                barangSesuai === 'ya'
-                  ? 'bg-status-successBg border-status-success text-status-success'
-                  : 'border-surface-border text-slate-600 hover:bg-slate-50'
-              }`}
+              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium border transition-colors ${barangSesuai === 'ya'
+                ? 'bg-status-successBg border-status-success text-status-success'
+                : 'border-surface-border text-slate-600 hover:bg-slate-50'
+                }`}
               onClick={() => setBarangSesuai('ya')}
               disabled={submitting}
             >
@@ -89,11 +88,10 @@ export default function PenerimaanFormModal({ open, po, onClose, onSubmit }: Pen
             </button>
             <button
               type="button"
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium border transition-colors ${
-                barangSesuai === 'tidak'
-                  ? 'bg-status-dangerBg border-status-danger text-status-danger'
-                  : 'border-surface-border text-slate-600 hover:bg-slate-50'
-              }`}
+              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium border transition-colors ${barangSesuai === 'tidak'
+                ? 'bg-status-dangerBg border-status-danger text-status-danger'
+                : 'border-surface-border text-slate-600 hover:bg-slate-50'
+                }`}
               onClick={() => setBarangSesuai('tidak')}
               disabled={submitting}
             >
@@ -102,7 +100,7 @@ export default function PenerimaanFormModal({ open, po, onClose, onSubmit }: Pen
           </div>
           {barangSesuai === 'tidak' && (
             <p className="text-[11px] text-status-danger mt-1.5">
-              Barang akan ditandai sebagai Pengecualian dan tidak lanjut ke tahap QC.
+              Barang akan masuk ke dalam Pengembalian Ke Supplier
             </p>
           )}
         </div>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../../components/ui/Modal';
 import type { ProdukFormErrors, ProdukFormValues } from '../../../types/produk';
-import { EMPTY_PRODUK_FORM, KATEGORI_PRODUK_OPTIONS } from '../../../types/produk';
+import { EMPTY_PRODUK_FORM } from '../../../types/produk';
 import { fetchSatuanBarang } from '../../../services/satuanBarangService';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import type { SatuanBarang } from '../../../types/satuanBarang';
 
 interface ProdukFormModalProps {
   open: boolean;
@@ -21,14 +23,11 @@ export default function ProdukFormModal({
   const [errors, setErrors] = useState<ProdukFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [satuanOptions, setSatuanOptions] = useState<any[]>([]);
-  const [loadingSatuan, setLoadingSatuan] = useState(false);
+  const [satuanOptions, setSatuanOptions] = useState<SatuanBarang[]>([]);
 
+  const { activeUnit } = useBusinessUnit();
+  const isFotosnaps = activeUnit === 'FOTOSNAPS';
   const isEdit = Boolean(editingItem);
-
-  // Ambil satuan yang dipilih untuk display di label konversi
-  const satuanDasarLabel = satuanOptions.find(s => s.id === values.satuanId)?.kode || '?';
-  const satuanBeliLabel = satuanOptions.find(s => s.id === values.satuanPembelianId)?.kode || '?';
 
   useEffect(() => {
     if (!open) return;
@@ -36,11 +35,10 @@ export default function ProdukFormModal({
       setValues({
         kodeProduk: editingItem.kodeProduk,
         namaProduk: editingItem.namaProduk,
-        kategori: editingItem.kategori,
+        kategori: editingItem.kategori || '',
         satuanId: editingItem.satuanId || '',
         satuanPembelianId: editingItem.satuanPembelianId || '',
-        konversi: String(editingItem.konversi),
-        minimumStok: String(editingItem.minimumStok),
+        konversi: String(editingItem.konversi || '1'),
         status: editingItem.status,
         deskripsi: editingItem.deskripsi || '',
         hargaBeli: editingItem.hargaBeli ? String(editingItem.hargaBeli) : '',
@@ -51,11 +49,9 @@ export default function ProdukFormModal({
     setErrors({});
     setSubmitError(null);
 
-    setLoadingSatuan(true);
     fetchSatuanBarang()
-      .then((data) => setSatuanOptions(data))
-      .catch(() => setSatuanOptions([]))
-      .finally(() => setLoadingSatuan(false));
+      .then((list) => setSatuanOptions(list.filter((s: SatuanBarang) => s.status === 'aktif')))
+      .catch(() => setSatuanOptions([]));
   }, [open, editingItem]);
 
   function handleChange<K extends keyof ProdukFormValues>(key: K, value: ProdukFormValues[K]) {
@@ -67,10 +63,10 @@ export default function ProdukFormModal({
     const errs: ProdukFormErrors = {};
     if (!values.kodeProduk.trim()) errs.kodeProduk = 'Kode produk wajib diisi';
     if (!values.namaProduk.trim()) errs.namaProduk = 'Nama produk wajib diisi';
-    if (!values.kategori) errs.kategori = 'Pilih kategori';
-    if (!values.satuanId) errs.satuanId = 'Pilih satuan dasar';
-    if (!values.konversi || Number(values.konversi) < 1) errs.konversi = 'Konversi minimal 1';
-    if (values.minimumStok === '' || Number(values.minimumStok) < 0) errs.minimumStok = 'Minimum stok tidak boleh negatif';
+    // Konversi hanya wajib untuk non-Fotosnaps
+    if (!isFotosnaps && (!values.konversi || Number(values.konversi) < 1)) {
+      errs.konversi = 'Konversi minimal 1';
+    }
     return errs;
   }
 
@@ -90,6 +86,20 @@ export default function ProdukFormModal({
       setSubmitting(false);
     }
   }
+
+  /** Buat label konversi human-readable dari data satuan yang dipilih */
+  function konversiPreview(): string | null {
+    if (isFotosnaps) return null;
+    const satuanBeli = satuanOptions.find((s) => s.id === values.satuanPembelianId);
+    const satuanDasar = satuanOptions.find((s) => s.id === values.satuanId);
+    if (!satuanBeli || !satuanDasar) return null;
+    if (satuanBeli.id === satuanDasar.id) return null;
+    const jumlah = Number(values.konversi) || 0;
+    if (jumlah <= 0) return null;
+    return `1 ${satuanBeli.kodeSatuan} = ${jumlah} ${satuanDasar.kodeSatuan}`;
+  }
+
+  const preview = konversiPreview();
 
   return (
     <Modal
@@ -142,106 +152,66 @@ export default function ProdukFormModal({
           {errors.namaProduk && <p className="text-[11px] text-status-danger mt-1">{errors.namaProduk}</p>}
         </div>
 
-        {/* Kategori */}
+        {/* Satuan Dasar */}
         <div>
-          <label className="label-field">Kategori</label>
+          <label className="label-field">Satuan Dasar</label>
           <select
             className="input-field"
-            value={values.kategori}
-            onChange={(e) => handleChange('kategori', e.target.value)}
+            value={values.satuanId}
+            onChange={(e) => handleChange('satuanId', e.target.value)}
             disabled={submitting}
           >
-            <option value="">Pilih kategori</option>
-            {KATEGORI_PRODUK_OPTIONS.map((k) => (
-              <option key={k} value={k}>{k}</option>
+            <option value="">Pilih satuan dasar</option>
+            {satuanOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.kodeSatuan} — {s.namaSatuan}
+              </option>
             ))}
           </select>
-          {errors.kategori && <p className="text-[11px] text-status-danger mt-1">{errors.kategori}</p>}
         </div>
 
-        {/* Satuan Dasar & Satuan Pembelian */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label-field">Satuan Dasar *</label>
-            <select
-              className="input-field"
-              value={values.satuanId}
-              onChange={(e) => handleChange('satuanId', e.target.value)}
-              disabled={submitting || loadingSatuan}
-            >
-              <option value="">Pilih satuan</option>
-              {satuanOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.kode} — {s.nama}
-                </option>
-              ))}
-            </select>
-            {errors.satuanId && <p className="text-[11px] text-status-danger mt-1">{errors.satuanId}</p>}
-          </div>
+        {/* Satuan Pembelian & Konversi — hanya untuk non-Fotosnaps */}
+        {!isFotosnaps && (
+          <>
+            <div>
+              <label className="label-field">Satuan Pembelian</label>
+              <select
+                className="input-field"
+                value={values.satuanPembelianId}
+                onChange={(e) => handleChange('satuanPembelianId', e.target.value)}
+                disabled={submitting}
+              >
+                <option value="">Pilih satuan pembelian</option>
+                {satuanOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.kodeSatuan} — {s.namaSatuan}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="label-field">Satuan Pembelian</label>
-            <select
-              className="input-field"
-              value={values.satuanPembelianId}
-              onChange={(e) => handleChange('satuanPembelianId', e.target.value)}
-              disabled={submitting || loadingSatuan}
-            >
-              <option value="">Sama dengan dasar</option>
-              {satuanOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.kode} — {s.nama}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {satuanOptions.length === 0 && !loadingSatuan && (
-          <p className="text-[11px] text-status-warning bg-status-warningBg rounded-md px-3 py-2">
-            Belum ada data Satuan Barang. Tambahkan dulu di Data Master &gt; Satuan Barang.
-          </p>
+            <div>
+              <label className="label-field">Konversi Satuan</label>
+              <input
+                type="number"
+                min={1}
+                step="any"
+                className="input-field"
+                placeholder="Contoh: 50  (artinya 1 Bal = 50 PCS)"
+                value={values.konversi}
+                onChange={(e) => handleChange('konversi', e.target.value)}
+                disabled={submitting}
+              />
+              {/* Preview konversi human-readable */}
+              {preview && (
+                <p className="text-[11px] text-brand-600 font-medium mt-1 bg-brand-50 rounded px-2 py-1">
+                  ✓ {preview}
+                </p>
+              )}
+              {errors.konversi && <p className="text-[11px] text-status-danger mt-1">{errors.konversi}</p>}
+            </div>
+          </>
         )}
-
-        {/* Konversi & Min Stok */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label-field">
-              Konversi{' '}
-              <span className="text-slate-400 font-normal">
-                (1 {satuanBeliLabel} = ? {satuanDasarLabel})
-              </span>
-            </label>
-            <input
-              type="number"
-              min={1}
-              step="any"
-              className="input-field"
-              placeholder="Contoh: 20"
-              value={values.konversi}
-              onChange={(e) => handleChange('konversi', e.target.value)}
-              disabled={submitting}
-            />
-            {errors.konversi && <p className="text-[11px] text-status-danger mt-1">{errors.konversi}</p>}
-          </div>
-
-          <div>
-            <label className="label-field">Minimum Stok ({satuanDasarLabel})</label>
-            <input
-              type="number"
-              min={0}
-              step="any"
-              className="input-field"
-              placeholder="Contoh: 30"
-              value={values.minimumStok}
-              onChange={(e) => handleChange('minimumStok', e.target.value)}
-              disabled={submitting}
-            />
-            {errors.minimumStok && (
-              <p className="text-[11px] text-status-danger mt-1">{errors.minimumStok}</p>
-            )}
-          </div>
-        </div>
 
         {/* Deskripsi */}
         <div>
