@@ -23,12 +23,12 @@ export async function validateProdukForm(
     errors.kategori = 'Kategori wajib dipilih.';
   }
 
-  if (!values.satuan?.trim() && !values.satuanId?.trim()) {
-    errors.satuan = 'Satuan wajib dipilih.';
+  if (!values.satuanId.trim()) {
+    errors.satuanId = 'Satuan wajib dipilih.';
   }
 
-  if (!values.satuanPembelian?.trim() && !values.satuanPembelianId?.trim()) {
-    errors.satuanPembelian = 'Satuan pembelian wajib dipilih.';
+  if (!values.satuanPembelianId.trim()) {
+    errors.satuanPembelianId = 'Satuan pembelian wajib dipilih.';
   }
 
   const konversi = Number(values.konversi);
@@ -36,13 +36,6 @@ export async function validateProdukForm(
     errors.konversi = 'Konversi wajib diisi.';
   } else if (Number.isNaN(konversi) || konversi <= 0) {
     errors.konversi = 'Konversi harus lebih besar dari 0.';
-  }
-
-  const minimumStok = Number(values.minimumStok);
-  if (!values.minimumStok.trim()) {
-    errors.minimumStok = 'Minimum stok wajib diisi.';
-  } else if (Number.isNaN(minimumStok) || minimumStok < 0) {
-    errors.minimumStok = 'Minimum stok tidak boleh negatif.';
   }
 
   if (values.kodeProduk.trim() && !errors.kodeProduk) {

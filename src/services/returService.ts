@@ -64,7 +64,7 @@ export async function fetchAllRetur(): Promise<Retur[]> {
 export async function createRetur(
   values: ReturFormValues,
   meta: { cabangNama?: string; poNomor?: string; pemasokNama?: string },
-  produkList: Produk[],
+  _produkList: Produk[],
   _fotoKerusakan?: string,
 ): Promise<Retur> {
   void meta;

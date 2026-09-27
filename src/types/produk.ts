@@ -53,6 +53,7 @@ export interface ProdukFormErrors {
   namaProduk?: string;
   kategori?: string;
   satuanId?: string;
+  satuanPembelianId?: string;
   konversi?: string;
 }
 

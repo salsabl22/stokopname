@@ -1,8 +1,6 @@
 import Modal from '../../../components/ui/Modal';
 import Badge from '../../../components/ui/Badge';
 import type { Produk } from '../../../types/produk';
-import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
-
 
 interface ProdukDetailModalProps {
   open: boolean;

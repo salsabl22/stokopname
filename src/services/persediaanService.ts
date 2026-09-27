@@ -62,12 +62,12 @@ export async function fetchPersediaan(): Promise<StokItem[]> {
     fetchAllPO(),
     fetchAllPesananCabang(),
   ]);
-  
+
   let data = (resInv as any[]).map(mapInventory);
 
   // Perhitungan real-time: Penyimpanan - Pesanan Cabang
   const poDisimpan = pos.filter((po) => po.status === 'disimpan');
-  const soValid = sos.filter((so) => so.status !== 'dibatalkan' && so.status !== 'gagal_kirim');
+  const soValid = sos.filter((so) => so.status !== 'gagal_kirim');
 
   data = data.map((inv) => {
     let totalIn = 0;

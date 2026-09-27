@@ -8,7 +8,6 @@ import { STATUS_SO_LABEL, STATUS_SO_TONE } from '../../../utils/statusSO';
 import { fetchPesananCabangByStatus, simpanHasilPacking } from '../../../services/pesananCabangService';
 import { fetchProduk } from '../../../services/produkService';
 import type { Produk } from '../../../types/produk';
-import PackingModal from './PackingModal';
 
 export default function PackingPage() {
   const [data, setData] = useState<PesananCabang[]>([]);

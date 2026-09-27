@@ -169,7 +169,7 @@ export default function ProdukPage() {
           <ErrorState message={error} onRetry={loadData} />
         ) : filteredData.length === 0 ? (
           <EmptyState
-            hasFilter={Boolean(searchTerm) || statusFilter !== 'semua' || kategoriFilter !== 'semua'}
+            hasFilter={Boolean(searchTerm) || statusFilter !== 'semua'}
             onAdd={openAddForm}
           />
         ) : (
@@ -262,11 +262,10 @@ function IconButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
-        tone === 'danger'
+      className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${tone === 'danger'
           ? 'text-slate-400 hover:text-status-danger hover:bg-status-dangerBg'
           : 'text-slate-400 hover:text-navy-800 hover:bg-slate-100'
-      }`}
+        }`}
     >
       {children}
     </button>
