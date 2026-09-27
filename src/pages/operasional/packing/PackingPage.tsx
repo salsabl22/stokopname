@@ -12,11 +12,11 @@ import PackingModal from './PackingModal';
 
 export default function PackingPage() {
   const [data, setData] = useState<PesananCabang[]>([]);
-  const [produkList, setProdukList] = useState<Produk[]>([]);
+  const [, setProdukList] = useState<Produk[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   const { toasts, showToast, dismissToast } = useToast();
 
   async function loadData() {

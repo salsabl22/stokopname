@@ -24,7 +24,6 @@ import {
   RotateCcw,
   Trash2,
   Users,
-  Shield,
   Menu,
   X,
   ChevronDown,
@@ -112,14 +111,14 @@ export function buildNavGroups(activeUnit: UnitBisnis): NavGroup[] {
     // Fitur eksklusif Fotosnaps — hanya tampil jika activeUnit === 'FOTOSNAPS'
     ...(activeUnit === 'FOTOSNAPS'
       ? [
-          {
-            title: 'Fotosnaps — Cabang',
-            items: [
-              { label: 'Penjualan Cabang', path: '/fotosnaps/penjualan-cabang', modul: 'barang_keluar', icon: ShoppingBag, implemented: true },
-              { label: 'Stok Cabang', path: '/fotosnaps/stok-cabang', modul: 'stock_opname', icon: LineChart, implemented: true },
-            ],
-          },
-        ]
+        {
+          title: 'Fotosnaps — Cabang',
+          items: [
+            { label: 'Penjualan Cabang', path: '/fotosnaps/penjualan-cabang', modul: 'barang_keluar', icon: ShoppingBag, implemented: true },
+            { label: 'Stok Cabang', path: '/fotosnaps/stok-cabang', modul: 'stock_opname', icon: LineChart, implemented: true },
+          ],
+        },
+      ]
       : []),
     {
       title: 'Sistem',
@@ -178,11 +177,10 @@ export default function Sidebar() {
               {UNIT_BISNIS_LIST.map((unit) => (
                 <button
                   key={unit.id}
-                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs transition-colors ${
-                    activeUnit === unit.id
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs transition-colors ${activeUnit === unit.id
                       ? `${unit.bgColor} ${unit.color} font-medium`
                       : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                  }`}
+                    }`}
                   onClick={() => {
                     setActiveUnit(unit.id);
                     setUnitDropdownOpen(false);
@@ -216,10 +214,9 @@ export default function Sidebar() {
                     end={item.path === '/'}
                     onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs transition-colors ${
-                        isActive
-                          ? 'bg-brand-600/20 text-brand-400 font-medium border border-brand-500/30'
-                          : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                      `flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs transition-colors ${isActive
+                        ? 'bg-brand-600/20 text-brand-400 font-medium border border-brand-500/30'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
                       }`
                     }
                   >
@@ -263,9 +260,8 @@ export default function Sidebar() {
 
       {/* Mobile Drawer */}
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 w-64 bg-navy-950 text-slate-300 flex flex-col z-50 transition-transform duration-300 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`lg:hidden fixed inset-y-0 left-0 w-64 bg-navy-950 text-slate-300 flex flex-col z-50 transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         {sidebarContent}
       </aside>

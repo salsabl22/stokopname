@@ -20,10 +20,6 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export default function ProdukDetailModal({ open, item, onClose }: ProdukDetailModalProps) {
-  const { activeUnit } = useBusinessUnit();
-
-
-
   if (!item) return null;
 
   return (

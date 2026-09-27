@@ -69,7 +69,6 @@ export async function createRetur(
 ): Promise<Retur> {
   void meta;
   const items = values.items.map((it) => {
-    const produk = produkList.find((p) => p.id === it.produkId);
     return {
       produkId: it.produkId,
       satuan: (it as any).satuan || 'PCS',

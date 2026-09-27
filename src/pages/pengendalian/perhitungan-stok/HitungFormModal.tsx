@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../../components/ui/Modal';
 import type { PerhitunganStok } from '../../../types/perhitunganStok';
-import { fetchStokByProduk } from '../../../services/persediaanService';
 import { hitungStokSistemRealtime } from '../../../services/perhitunganStokService';
 
 interface HitungFormModalProps {
@@ -108,17 +107,15 @@ export default function HitungFormModal({ open, tugas, onClose, onSubmit }: Hitu
 
         {selisihPreview !== null && (
           <p
-            className={`text-[11px] rounded-md px-3 py-2 ${
-              selisihPreview === 0
-                ? 'text-status-success bg-status-successBg'
-                : 'text-status-warning bg-status-warningBg'
-            }`}
+            className={`text-[11px] rounded-md px-3 py-2 ${selisihPreview === 0
+              ? 'text-status-success bg-status-successBg'
+              : 'text-status-warning bg-status-warningBg'
+              }`}
           >
             {selisihPreview === 0
               ? 'Sesuai — tidak ada selisih.'
-              : `Selisih: ${selisihPreview > 0 ? '+' : ''}${selisihPreview} ${tugas.satuan} (${
-                  selisihPreview > 0 ? 'lebih dari sistem' : 'kurang dari sistem'
-                })`}
+              : `Selisih: ${selisihPreview > 0 ? '+' : ''}${selisihPreview} ${tugas.satuan} (${selisihPreview > 0 ? 'lebih dari sistem' : 'kurang dari sistem'
+              })`}
           </p>
         )}
       </div>

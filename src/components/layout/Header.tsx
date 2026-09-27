@@ -8,7 +8,7 @@ import { useBusinessUnit } from '../../contexts/BusinessUnitContext';
 export default function Header() {
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { activeUnit, activeUnitInfo } = useBusinessUnit();
+  const { activeUnit } = useBusinessUnit();
 
   // Bangun nav groups dinamis berdasarkan unit bisnis aktif (agar breadcrumb "Cabang"/"Event" sesuai)
   const navGroups = buildNavGroups(activeUnit);

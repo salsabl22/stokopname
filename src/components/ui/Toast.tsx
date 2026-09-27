@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
-import { CheckCircle2, XCircle, X } from 'lucide-react';
+import { useEffect, type ReactNode } from 'react';
+import { CheckCircle2, XCircle, AlertTriangle, X } from 'lucide-react';
 
 export interface ToastData {
   id: number;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warning';
   message: string;
 }
 
@@ -12,27 +12,34 @@ interface ToastProps {
   onDismiss: (id: number) => void;
 }
 
+const TOAST_STYLES: Record<ToastData['type'], { border: string; icon: ReactNode }> = {
+  success: {
+    border: 'border-status-success/30',
+    icon: <CheckCircle2 size={16} className="text-status-success shrink-0 mt-0.5" />,
+  },
+  error: {
+    border: 'border-status-danger/30',
+    icon: <XCircle size={16} className="text-status-danger shrink-0 mt-0.5" />,
+  },
+  warning: {
+    border: 'border-status-warning/30',
+    icon: <AlertTriangle size={16} className="text-status-warning shrink-0 mt-0.5" />,
+  },
+};
+
 function ToastItem({ toast, onDismiss }: ToastProps) {
   useEffect(() => {
     const timer = setTimeout(() => onDismiss(toast.id), 3500);
     return () => clearTimeout(timer);
   }, [toast.id, onDismiss]);
 
-  const isSuccess = toast.type === 'success';
+  const style = TOAST_STYLES[toast.type];
 
   return (
     <div
-      className={`flex items-start gap-2.5 w-80 px-3.5 py-3 rounded-md shadow-lg border text-xs ${
-        isSuccess
-          ? 'bg-white border-status-success/30 text-slate-700'
-          : 'bg-white border-status-danger/30 text-slate-700'
-      }`}
+      className={`flex items-start gap-2.5 w-80 px-3.5 py-3 rounded-md shadow-lg border text-xs bg-white text-slate-700 ${style.border}`}
     >
-      {isSuccess ? (
-        <CheckCircle2 size={16} className="text-status-success shrink-0 mt-0.5" />
-      ) : (
-        <XCircle size={16} className="text-status-danger shrink-0 mt-0.5" />
-      )}
+      {style.icon}
       <p className="flex-1 leading-relaxed">{toast.message}</p>
       <button
         type="button"
