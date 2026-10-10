@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Undo2, RefreshCcw, Image } from 'lucide-react';
+import { Plus, Search, Undo2, RefreshCcw, Image, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
 import ReturFormModal from './ReturFormModal';
 import PenerimaanReturModal from './PenerimaanReturModal';
 import PemeriksaanReturModal from './PemeriksaanReturModal';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import type { KondisiBarangRetur, Retur, ReturFormValues } from '../../../types/retur';
 import { STATUS_RETUR_LABEL, STATUS_RETUR_TONE } from '../../../utils/statusRetur';
 import {
@@ -13,6 +14,7 @@ import {
   fetchAllRetur,
   prosesPemeriksaanRetur,
   prosesPenerimaanRetur,
+  deleteRetur,
 } from '../../../services/returService';
 import { fetchProduk } from '../../../services/produkService';
 
@@ -30,6 +32,8 @@ export default function ReturPage() {
     url: '',
     nomor: '',
   });
+  const [deleteTarget, setDeleteTarget] = useState<Retur | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -94,6 +98,21 @@ export default function ReturPage() {
     showToast(kondisi === 'baik' ? 'success' : 'error', pesan[kondisi]);
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteRetur(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `Retur ${deleteTarget.nomorRetur} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus retur.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
     <div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -110,10 +129,20 @@ export default function ReturPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button type="button" className="btn-primary" onClick={() => setFormOpen(true)}>
-            <Plus size={14} />
-            Ajukan Retur
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 text-red-600 border border-red-200 text-xs font-medium hover:bg-red-100 transition-colors"
+              onClick={() => setDeleteTarget({ id: '__reset__' } as Retur)}
+            >
+              <Trash2 size={13} />
+              Reset Semua
+            </button>
+            <button type="button" className="btn-primary" onClick={() => setFormOpen(true)}>
+              <Plus size={14} />
+              Ajukan Retur
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -165,16 +194,27 @@ export default function ReturPage() {
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {r.status === 'diajukan' && (
-                        <button type="button" className="btn-secondary" onClick={() => setPenerimaanTarget(r)}>
-                          Proses Penerimaan
+                      <div className="flex items-center justify-end gap-1">
+                        {r.status === 'diajukan' && (
+                          <button type="button" className="btn-secondary" onClick={() => setPenerimaanTarget(r)}>
+                            Proses Penerimaan
+                          </button>
+                        )}
+                        {r.status === 'diterima' && (
+                          <button type="button" className="btn-secondary" onClick={() => setPemeriksaanTarget(r)}>
+                            Proses Pemeriksaan
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(r)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
                         </button>
-                      )}
-                      {r.status === 'diterima' && (
-                        <button type="button" className="btn-secondary" onClick={() => setPemeriksaanTarget(r)}>
-                          Proses Pemeriksaan
-                        </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -200,34 +240,31 @@ export default function ReturPage() {
         onSubmit={handlePemeriksaanSubmit}
       />
 
-      {/* Modal Preview Foto */}
+      {/* Foto preview modal */}
       {fotoPreview.open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={() => setFotoPreview({ open: false, url: '', nomor: '' })}
         >
-          <div
-            className="bg-white rounded-xl shadow-2xl p-4 max-w-lg w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="bg-white rounded-xl shadow-2xl p-4 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-semibold text-slate-800">Foto Kerusakan — {fotoPreview.nomor}</p>
-              <button
-                type="button"
-                className="text-slate-400 hover:text-slate-700 text-lg leading-none"
-                onClick={() => setFotoPreview({ open: false, url: '', nomor: '' })}
-              >
-                ×
-              </button>
+              <button type="button" className="text-slate-400 hover:text-slate-700 text-lg leading-none" onClick={() => setFotoPreview({ open: false, url: '', nomor: '' })}>×</button>
             </div>
-            <img
-              src={fotoPreview.url}
-              alt="Foto kerusakan"
-              className="w-full rounded-lg object-contain max-h-80"
-            />
+            <img src={fotoPreview.url} alt="Foto kerusakan" className="w-full rounded-lg object-contain max-h-80" />
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget) && deleteTarget?.id !== '__reset__'}
+        title="Hapus Retur"
+        description={`Apakah Anda yakin ingin menghapus retur ${deleteTarget?.nomorRetur}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
     </div>
   );
 }

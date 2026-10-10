@@ -349,3 +349,64 @@ export const getStockMovements = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const deleteInventoryItem = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await req.prisma.inventory.delete({ where: { id } });
+    res.json({ message: 'Item persediaan berhasil dihapus' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// ============ DELETE OPERATIONS ============
+export const deleteSalesOrder = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await req.prisma.packingResult.deleteMany({ where: { soItem: { soId: id } } });
+    await req.prisma.sOItem.deleteMany({ where: { soId: id } });
+    await req.prisma.salesOrder.delete({ where: { id } });
+    res.json({ message: 'Sales order berhasil dihapus' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const deleteRetur = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await req.prisma.returItem.deleteMany({ where: { returId: id } });
+    await req.prisma.retur.delete({ where: { id } });
+    res.json({ message: 'Retur berhasil dihapus' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const deleteStockMovement = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await req.prisma.stockMovement.delete({ where: { id } });
+    res.json({ message: 'Pergerakan stok berhasil dihapus' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const resetAllOperasionalData = async (req: Request, res: Response) => {
+  try {
+    await req.prisma.$transaction(async (tx: any) => {
+      await tx.packingResult.deleteMany({});
+      await tx.sOItem.deleteMany({});
+      await tx.shipment.deleteMany({});
+      await tx.salesOrder.deleteMany({});
+      await tx.returItem.deleteMany({});
+      await tx.retur.deleteMany({});
+      await tx.stockMovement.deleteMany({});
+    });
+    res.json({ message: 'Semua data operasional berhasil direset' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};

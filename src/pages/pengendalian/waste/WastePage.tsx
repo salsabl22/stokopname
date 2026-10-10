@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Trash2, Plus } from 'lucide-react';
-import { fetchWastes, createWaste } from '../../../services/pengendalianService';
+import { fetchWastes, createWaste, deleteWaste } from '../../../services/pengendalianService';
 import { fetchProduk } from '../../../services/produkService';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
+import { ToastContainer } from '../../../components/ui/Toast';
+import { useToast } from '../../../utils/useToast';
 
 export default function WastePage() {
   const [wastes, setWastes] = useState<any[]>([]);
@@ -9,6 +12,11 @@ export default function WastePage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ produkId: '', batchId: '', lokasiId: '', petugasId: '', jumlah: '', satuan: 'PCS', alasan: '', referensi: '' });
   const [produkList, setProdukList] = useState<any[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
+  const { toasts, showToast, dismissToast } = useToast();
 
   async function loadData() {
     setLoading(true);
@@ -48,21 +56,47 @@ export default function WastePage() {
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteWaste(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `Waste ${deleteTarget.nomorWaste} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus data waste.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className="card">
         <div className="p-4 flex justify-between items-center border-b border-surface-border">
           <div>
             <h2 className="text-sm font-semibold text-slate-700">Waste / Barang Tidak Layak</h2>
             <p className="text-xs text-slate-400 mt-0.5">Catat barang yang dinyatakan waste dan kurangi dari inventory</p>
           </div>
-          <button
-            type="button"
-            className="btn-primary flex items-center gap-1.5 text-xs"
-            onClick={() => { setShowForm(true); loadData(); }}
-          >
-            <Plus size={14} /> Catat Waste
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 text-red-600 border border-red-200 text-xs font-medium hover:bg-red-100 transition-colors"
+              onClick={() => setResetConfirmOpen(true)}
+            >
+              <Trash2 size={13} />
+              Reset Semua
+            </button>
+            <button
+              type="button"
+              className="btn-primary flex items-center gap-1.5 text-xs"
+              onClick={() => { setShowForm(true); loadData(); }}
+            >
+              <Plus size={14} /> Catat Waste
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -121,13 +155,14 @@ export default function WastePage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[11px] uppercase text-slate-400 border-b border-surface-border">
-                  <th className="px-4 py-2.5 font-medium">No. Waste</th>
+                 <th className="px-4 py-2.5 font-medium">No. Waste</th>
                   <th className="px-4 py-2.5 font-medium">Produk</th>
                   <th className="px-4 py-2.5 font-medium">Batch</th>
                   <th className="px-4 py-2.5 font-medium">Jumlah</th>
                   <th className="px-4 py-2.5 font-medium">Alasan</th>
                   <th className="px-4 py-2.5 font-medium">Referensi</th>
                   <th className="px-4 py-2.5 font-medium">Waktu</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -140,6 +175,19 @@ export default function WastePage() {
                     <td className="px-4 py-2.5 text-xs text-slate-600">{w.alasan}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-500">{w.referensi || '-'}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-400">{new Date(w.createdAt).toLocaleString('id-ID')}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(w)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -147,6 +195,33 @@ export default function WastePage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Data Waste"
+        description={`Apakah Anda yakin ingin menghapus waste ${deleteTarget?.nomorWaste}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
+
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title="Reset Semua Data Waste"
+        description="Tindakan ini akan menghapus SEMUA data waste secara permanen. Lanjutkan?"
+        confirmLabel="Ya, Reset Semua"
+        onConfirm={async () => {
+          // Reset semua waste satu per satu
+          for (const w of wastes) {
+            try { await deleteWaste(w.id); } catch {}
+          }
+          setResetConfirmOpen(false);
+          await loadData();
+          showToast('success', 'Semua data waste berhasil direset.');
+        }}
+        onCancel={() => setResetConfirmOpen(false)}
+      />
     </div>
   );
 }

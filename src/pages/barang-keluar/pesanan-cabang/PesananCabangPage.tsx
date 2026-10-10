@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, ShoppingCart, RefreshCcw } from 'lucide-react';
+import { Plus, Search, ShoppingCart, RefreshCcw, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import PesananCabangFormModal from './PesananCabangFormModal';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import type { PesananCabang, PesananCabangFormValues } from '../../../types/pesananCabang';
 import { STATUS_SO_LABEL, STATUS_SO_TONE } from '../../../utils/statusSO';
-import { createPesananCabang, fetchAllPesananCabang } from '../../../services/pesananCabangService';
+import { createPesananCabang, fetchAllPesananCabang, deleteSalesOrder, resetAllSalesOrders } from '../../../services/pesananCabangService';
 import { fetchProduk } from '../../../services/produkService';
 
 /** Unit bisnis yang menggunakan istilah "Event" sebagai pengganti "Cabang" */
@@ -23,6 +24,10 @@ export default function PesananCabangPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formOpen, setFormOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PesananCabang | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -59,6 +64,35 @@ export default function PesananCabangPage() {
     showToast('success', `Pesanan ${labelSingular.toLowerCase()} berhasil disimpan. Lanjut ke tahap Alokasi.`);
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteSalesOrder(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `Pesanan ${deleteTarget.nomorPesanan} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus pesanan.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
+  async function handleResetAll() {
+    setResetLoading(true);
+    try {
+      await resetAllSalesOrders();
+      setResetConfirmOpen(false);
+      await loadData();
+      showToast('success', 'Semua data pesanan cabang berhasil direset.');
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal mereset data.');
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   return (
     <div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -75,10 +109,20 @@ export default function PesananCabangPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button type="button" className="btn-primary" onClick={() => setFormOpen(true)}>
-            <Plus size={14} />
-            Buat Pesanan {labelSingular}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 text-red-600 border border-red-200 text-xs font-medium hover:bg-red-100 transition-colors"
+              onClick={() => setResetConfirmOpen(true)}
+            >
+              <Trash2 size={13} />
+              Reset Semua
+            </button>
+            <button type="button" className="btn-primary" onClick={() => setFormOpen(true)}>
+              <Plus size={14} />
+              Buat Pesanan {labelSingular}
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -100,6 +144,7 @@ export default function PesananCabangPage() {
                   <th className="px-4 py-2.5 font-medium">{labelSingular}</th>
                   <th className="px-4 py-2.5 font-medium">Item</th>
                   <th className="px-4 py-2.5 font-medium">Status</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -110,6 +155,19 @@ export default function PesananCabangPage() {
                     <td className="px-4 py-2.5 text-xs text-slate-600">{p.items.length} produk</td>
                     <td className="px-4 py-2.5">
                       <Badge tone={STATUS_SO_TONE[p.status]}>{STATUS_SO_LABEL[p.status]}</Badge>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(p)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -124,6 +182,26 @@ export default function PesananCabangPage() {
         onClose={() => setFormOpen(false)}
         onSubmit={handleFormSubmit}
         labelSingular={labelSingular}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Pesanan Cabang"
+        description={`Apakah Anda yakin ingin menghapus pesanan ${deleteTarget?.nomorPesanan}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
+
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title="Reset Semua Pesanan Cabang"
+        description="Tindakan ini akan menghapus SEMUA data pesanan cabang secara permanen. Lanjutkan?"
+        confirmLabel="Ya, Reset Semua"
+        onConfirm={handleResetAll}
+        onCancel={() => setResetConfirmOpen(false)}
+        loading={resetLoading}
       />
     </div>
   );

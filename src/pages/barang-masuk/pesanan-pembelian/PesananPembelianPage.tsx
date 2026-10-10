@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Eye, ShoppingCart, RefreshCcw, Truck } from 'lucide-react';
+import { Plus, Search, Eye, ShoppingCart, RefreshCcw, Truck, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
 import PesananPembelianFormModal from './PesananPembelianFormModal';
 import PesananPembelianDetailModal from './PesananPembelianDetailModal';
 import PesananPembelianStatusModal from './PesananPembelianStatusModal';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import type { PesananPembelian, PesananPembelianFormValues } from '../../../types/barangMasuk';
 import { formatRupiah } from '../../../utils/statusPO';
 import { useMasterStatus } from '../../../hooks/useMasterStatus';
@@ -14,6 +15,8 @@ import {
   fetchAllPO,
   tandaiBarangDatang,
   updatePOStatus,
+  deletePO,
+  resetAllPO,
 } from '../../../services/barangMasukService';
 import { fetchProduk } from '../../../services/produkService';
 
@@ -26,6 +29,10 @@ export default function PesananPembelianPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<PesananPembelian | null>(null);
   const [statusItem, setStatusItem] = useState<PesananPembelian | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PesananPembelian | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const { getLabel, getTone } = useMasterStatus('PO');
 
@@ -76,6 +83,35 @@ export default function PesananPembelianPage() {
     showToast('success', 'Status PO berhasil diperbarui.');
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deletePO(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `PO ${deleteTarget.nomorPO} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus PO.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
+  async function handleResetAll() {
+    setResetLoading(true);
+    try {
+      await resetAllPO();
+      setResetConfirmOpen(false);
+      await loadData();
+      showToast('success', 'Semua data pesanan pembelian berhasil direset.');
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal mereset data.');
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   return (
     <div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -92,10 +128,20 @@ export default function PesananPembelianPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button type="button" className="btn-primary" onClick={() => setFormOpen(true)}>
-            <Plus size={14} />
-            Buat Pesanan
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 text-red-600 border border-red-200 text-xs font-medium hover:bg-red-100 transition-colors"
+              onClick={() => setResetConfirmOpen(true)}
+            >
+              <Trash2 size={13} />
+              Reset Semua
+            </button>
+            <button type="button" className="btn-primary" onClick={() => setFormOpen(true)}>
+              <Plus size={14} />
+              Buat Pesanan
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -144,6 +190,9 @@ export default function PesananPembelianPage() {
                         <IconButton label="Detail" onClick={() => setDetailItem(po)}>
                           <Eye size={14} />
                         </IconButton>
+                        <IconButton label="Hapus" onClick={() => setDeleteTarget(po)}>
+                          <Trash2 size={14} className="text-red-400 hover:text-red-600" />
+                        </IconButton>
                       </div>
                     </td>
                   </tr>
@@ -171,6 +220,26 @@ export default function PesananPembelianPage() {
         item={statusItem}
         onClose={() => setStatusItem(null)}
         onSubmit={handleEditStatusSubmit}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Pesanan Pembelian"
+        description={`Apakah Anda yakin ingin menghapus PO ${deleteTarget?.nomorPO}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
+
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title="Reset Semua Pesanan Pembelian"
+        description="Tindakan ini akan menghapus SEMUA data pesanan pembelian secara permanen. Data tidak dapat dipulihkan. Lanjutkan?"
+        confirmLabel="Ya, Reset Semua"
+        onConfirm={handleResetAll}
+        onCancel={() => setResetConfirmOpen(false)}
+        loading={resetLoading}
       />
     </div>
   );

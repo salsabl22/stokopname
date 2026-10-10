@@ -199,3 +199,25 @@ export const validasiStokUntukPesanan = async (
     return { produkId: it.produkId, cukup: tersedia >= it.jumlah, sisaStok: tersedia };
   });
 };
+
+export async function deleteSalesOrder(id: string): Promise<void> {
+  const res = await fetch(`${getApiBase()}/operasional/sales-order/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal menghapus pesanan cabang');
+  }
+}
+
+export async function resetAllSalesOrders(): Promise<void> {
+  const res = await fetch(`${getApiBase()}/operasional/sales-order/reset-all`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal mereset data pesanan cabang');
+  }
+}

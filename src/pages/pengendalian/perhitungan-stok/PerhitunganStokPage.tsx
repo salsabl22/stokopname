@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Scale, RefreshCcw } from 'lucide-react';
+import { Plus, Search, Scale, RefreshCcw, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
@@ -7,6 +7,7 @@ import TugasFormModal from './TugasFormModal';
 import HitungFormModal from './HitungFormModal';
 import InvestigasiFormModal from './InvestigasiFormModal';
 import PersetujuanFormModal from './PersetujuanFormModal';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import type { PerhitunganStok } from '../../../types/perhitunganStok';
 import { STATUS_SO_CNT_LABEL, STATUS_SO_CNT_TONE } from '../../../utils/statusPerhitunganStok';
 import {
@@ -16,6 +17,8 @@ import {
   inputHasilHitung,
   prosesInvestigasi,
   prosesPersetujuan,
+  deleteOpname,
+  resetAllOpname,
 } from '../../../services/perhitunganStokService';
 
 
@@ -29,6 +32,9 @@ export default function PerhitunganStokPage() {
   const [hitungTarget, setHitungTarget] = useState<PerhitunganStok | null>(null);
   const [investigasiTarget, setInvestigasiTarget] = useState<PerhitunganStok | null>(null);
   const [persetujuanTarget, setPersetujuanTarget] = useState<PerhitunganStok | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PerhitunganStok | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -105,6 +111,32 @@ export default function PerhitunganStokPage() {
     showToast('success', `${p.nomor} dibuka kembali untuk investigasi ulang.`);
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteOpname(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `${deleteTarget.nomor} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus data.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
+  async function handleResetAll() {
+    try {
+      await resetAllOpname();
+      setResetConfirmOpen(false);
+      await loadData();
+      showToast('success', 'Semua data perhitungan stok berhasil direset.');
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal mereset data.');
+    }
+  }
+
   return (
     <div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -121,10 +153,20 @@ export default function PerhitunganStokPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button type="button" className="btn-primary" onClick={() => setTugasFormOpen(true)}>
-            <Plus size={14} />
-            Buat Tugas Perhitungan
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 text-red-600 border border-red-200 text-xs font-medium hover:bg-red-100 transition-colors"
+              onClick={() => setResetConfirmOpen(true)}
+            >
+              <Trash2 size={13} />
+              Reset Semua
+            </button>
+            <button type="button" className="btn-primary" onClick={() => setTugasFormOpen(true)}>
+              <Plus size={14} />
+              Buat Tugas Perhitungan
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -167,30 +209,37 @@ export default function PerhitunganStokPage() {
                       <Badge tone={STATUS_SO_CNT_TONE[p.status]}>{STATUS_SO_CNT_LABEL[p.status]}</Badge>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {p.status === 'ditugaskan' && (
-                        <button type="button" className="btn-secondary" onClick={() => setHitungTarget(p)}>
-                          Input Hasil Hitung
-                        </button>
-                      )}
-                      {p.status === 'menunggu_investigasi' && (
-                        <button type="button" className="btn-secondary" onClick={() => setInvestigasiTarget(p)}>
-                          Investigasi
-                        </button>
-                      )}
-                      {p.status === 'menunggu_persetujuan' && (
-                        <button type="button" className="btn-secondary" onClick={() => setPersetujuanTarget(p)}>
-                          Proses Persetujuan
-                        </button>
-                      )}
-                      {p.status === 'ditolak' && (
+                      <div className="flex items-center justify-end gap-1">
+                        {p.status === 'ditugaskan' && (
+                          <button type="button" className="btn-secondary" onClick={() => setHitungTarget(p)}>
+                            Input Hasil Hitung
+                          </button>
+                        )}
+                        {p.status === 'menunggu_investigasi' && (
+                          <button type="button" className="btn-secondary" onClick={() => setInvestigasiTarget(p)}>
+                            Investigasi
+                          </button>
+                        )}
+                        {p.status === 'menunggu_persetujuan' && (
+                          <button type="button" className="btn-secondary" onClick={() => setPersetujuanTarget(p)}>
+                            Proses Persetujuan
+                          </button>
+                        )}
+                        {p.status === 'ditolak' && (
+                          <button type="button" className="btn-secondary" onClick={() => handleInvestigasiUlang(p)}>
+                            Investigasi Ulang
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className="btn-secondary"
-                          onClick={() => handleInvestigasiUlang(p)}
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(p)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                         >
-                          Investigasi Ulang
+                          <Trash2 size={14} />
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -221,6 +270,25 @@ export default function PerhitunganStokPage() {
         tugas={persetujuanTarget}
         onClose={() => setPersetujuanTarget(null)}
         onSubmit={handlePersetujuanSubmit}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Data Perhitungan Stok"
+        description={`Apakah Anda yakin ingin menghapus ${deleteTarget?.nomor}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
+
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title="Reset Semua Perhitungan Stok"
+        description="Tindakan ini akan menghapus SEMUA data perhitungan stok secara permanen. Lanjutkan?"
+        confirmLabel="Ya, Reset Semua"
+        onConfirm={handleResetAll}
+        onCancel={() => setResetConfirmOpen(false)}
       />
     </div>
   );

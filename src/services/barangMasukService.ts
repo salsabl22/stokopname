@@ -201,3 +201,25 @@ export async function simpanKeGudang(id: string, lokasiPenyimpanan: string): Pro
   await updateStatus(id, { status: 'disimpan', lokasiPenyimpanan });
   await completeTaskByRef(id);
 }
+
+export async function deletePO(id: string): Promise<void> {
+  const res = await fetch(`${getApiBase()}/purchase-order/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal menghapus pesanan pembelian');
+  }
+}
+
+export async function resetAllPO(): Promise<void> {
+  const res = await fetch(`${getApiBase()}/purchase-order/reset-all`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal mereset data pesanan pembelian');
+  }
+}

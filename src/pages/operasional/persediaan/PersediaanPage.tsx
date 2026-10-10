@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Boxes, RefreshCcw } from 'lucide-react';
+import { Search, Boxes, RefreshCcw, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
+import { ToastContainer } from '../../../components/ui/Toast';
+import { useToast } from '../../../utils/useToast';
 import type { StokItem } from '../../../types/persediaan';
-import { fetchPersediaan } from '../../../services/persediaanService';
+import { fetchPersediaan, deleteInventoryItem, resetAllInventory } from '../../../services/persediaanService';
 
 export default function PersediaanPage() {
   const [data, setData] = useState<StokItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<StokItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const { toasts, showToast, dismissToast } = useToast();
 
   async function loadData() {
     setLoading(true);
@@ -36,10 +45,40 @@ export default function PersediaanPage() {
     [data, searchTerm],
   );
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteInventoryItem(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `Stok ${deleteTarget.produkNama} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
+  async function handleResetAll() {
+    setResetLoading(true);
+    try {
+      await resetAllInventory();
+      setResetConfirmOpen(false);
+      await loadData();
+      showToast('success', 'Semua data persediaan & transaksi berhasil direset.');
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal mereset.');
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   return (
     <div>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className="card">
-        <div className="p-4 border-b border-surface-border">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border-b border-surface-border">
           <div className="relative w-full sm:w-72">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -50,6 +89,14 @@ export default function PersediaanPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 text-red-600 border border-red-200 text-xs font-medium hover:bg-red-100 transition-colors"
+            onClick={() => setResetConfirmOpen(true)}
+          >
+            <Trash2 size={13} />
+            Reset Semua Data
+          </button>
         </div>
 
         {loading ? (
@@ -66,6 +113,7 @@ export default function PersediaanPage() {
                   <th className="px-4 py-2.5 font-medium">Nama Produk</th>
                   <th className="px-4 py-2.5 font-medium">On Hand</th>
                   <th className="px-4 py-2.5 font-medium">Status</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -82,6 +130,19 @@ export default function PersediaanPage() {
                           {rendah ? 'Stok Menipis' : 'Aktif'}
                         </Badge>
                       </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            aria-label="Hapus"
+                            title="Hapus"
+                            onClick={() => setDeleteTarget(item)}
+                            className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -90,6 +151,26 @@ export default function PersediaanPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Item Persediaan"
+        description={`Apakah Anda yakin ingin menghapus stok ${deleteTarget?.produkNama}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
+
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title="Reset Semua Data Persediaan"
+        description="PERINGATAN: Tindakan ini akan menghapus SEMUA data persediaan, pergerakan stok, pesanan, dan transaksi secara permanen. Data tidak dapat dipulihkan. Lanjutkan?"
+        confirmLabel="Ya, Reset Semua"
+        onConfirm={handleResetAll}
+        onCancel={() => setResetConfirmOpen(false)}
+        loading={resetLoading}
+      />
     </div>
   );
 }

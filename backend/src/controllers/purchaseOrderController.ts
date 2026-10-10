@@ -129,3 +129,15 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+export const resetAllPurchaseOrders = async (req: Request, res: Response) => {
+  try {
+    await req.prisma.$transaction(async (tx: any) => {
+      await tx.pOItem.deleteMany({});
+      await tx.purchaseOrder.deleteMany({});
+    });
+    res.json({ message: 'Semua data pesanan pembelian berhasil direset' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};

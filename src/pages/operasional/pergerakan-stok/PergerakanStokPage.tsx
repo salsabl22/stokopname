@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, TrendingUp, RefreshCcw, ArrowDownRight, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
+import { Search, TrendingUp, RefreshCcw, ArrowDownRight, ArrowUpRight, ArrowRightLeft, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
-import { fetchStockMovements } from '../../../services/stockMovementService';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
+import { ToastContainer } from '../../../components/ui/Toast';
+import { useToast } from '../../../utils/useToast';
+import { fetchStockMovements, deleteStockMovement } from '../../../services/stockMovementService';
 import type { StockMovement, TipeMovement } from '../../../types/stockMovement';
 import { TIPE_MOVEMENT_LABEL, TIPE_MOVEMENT_TONE } from '../../../types/stockMovement';
 
@@ -9,6 +12,10 @@ export default function PergerakanStokPage() {
   const [data, setData] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StockMovement | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const { toasts, showToast, dismissToast } = useToast();
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,6 +36,21 @@ export default function PergerakanStokPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteStockMovement(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', 'Pergerakan stok berhasil dihapus.');
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus data.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
 
   const filteredData = useMemo(() => {
     return data.filter((m) => {
@@ -55,6 +77,7 @@ export default function PergerakanStokPage() {
 
   return (
     <div className="space-y-4">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       {/* SUMMARY BADGES */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card p-3.5 flex items-center justify-between">
@@ -169,6 +192,7 @@ export default function PergerakanStokPage() {
                   <th className="px-4 py-2.5 font-medium">Alur Mutasi (Dari &rarr; Ke)</th>
                   <th className="px-4 py-2.5 font-medium">Referensi / No. Dok</th>
                   <th className="px-4 py-2.5 font-medium">Keterangan</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,6 +222,19 @@ export default function PergerakanStokPage() {
                     </td>
                     <td className="px-4 py-2.5 text-xs font-mono font-medium text-slate-700">{m.referensi}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-500 max-w-xs truncate">{m.keterangan || '-'}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(m)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -205,6 +242,16 @@ export default function PergerakanStokPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Pergerakan Stok"
+        description={`Apakah Anda yakin ingin menghapus record ini? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
     </div>
   );
 }

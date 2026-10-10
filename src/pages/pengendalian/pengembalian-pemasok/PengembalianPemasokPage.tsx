@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { RotateCcw, Plus, Check, Camera, X, Image, Upload } from 'lucide-react';
-import { fetchExceptions, createException, resolveException } from '../../../services/pengendalianService';
+import { RotateCcw, Plus, Check, Camera, X, Image, Upload, Trash2 } from 'lucide-react';
+import { fetchExceptions, createException, resolveException, deleteException } from '../../../services/pengendalianService';
 import { useAuth } from '../../../contexts/AuthContext';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 
 const ALASAN_PENGEMBALIAN = [
   'BARANG_RUSAK_DARI_PEMASOK',
@@ -35,6 +36,8 @@ export default function PengembalianPemasokPage() {
   const [fotos, setFotos] = useState<FotoItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   async function loadData() {
     setLoading(true);
@@ -151,6 +154,20 @@ export default function PengembalianPemasokPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteException(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+    } catch (e: any) {
+      alert(e.message || 'Gagal menghapus data.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="card">
@@ -164,13 +181,23 @@ export default function PengembalianPemasokPage() {
               Catat dan kelola pengembalian barang ke supplier dengan bukti foto kondisi barang
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-primary flex items-center gap-1.5 text-xs"
-            onClick={() => setShowForm(true)}
-          >
-            <Plus size={14} /> Catat Pengembalian
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 text-red-600 border border-red-200 text-xs font-medium hover:bg-red-100 transition-colors"
+              onClick={() => { /* Reset handled below */ }}
+            >
+              <Trash2 size={13} />
+              Reset Semua
+            </button>
+            <button
+              type="button"
+              className="btn-primary flex items-center gap-1.5 text-xs"
+              onClick={() => setShowForm(true)}
+            >
+              <Plus size={14} /> Catat Pengembalian
+            </button>
+          </div>
         </div>
 
         {/* FORM */}
@@ -365,15 +392,26 @@ export default function PengembalianPemasokPage() {
                       {new Date(item.createdAt).toLocaleString('id-ID')}
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {item.status === 'pending' && (
+                      <div className="flex items-center justify-end gap-1">
+                        {item.status === 'pending' && (
+                          <button
+                            type="button"
+                            className="btn-secondary p-1.5 text-green-600 flex items-center gap-1 text-xs"
+                            onClick={() => handleResolve(item.id)}
+                          >
+                            <Check size={12} /> Selesai
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className="btn-secondary p-1.5 text-green-600 flex items-center gap-1 text-xs"
-                          onClick={() => handleResolve(item.id)}
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(item)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                         >
-                          <Check size={12} /> Selesai
+                          <Trash2 size={14} />
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -382,6 +420,16 @@ export default function PengembalianPemasokPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Data Pengembalian"
+        description={`Apakah Anda yakin ingin menghapus catatan pengembalian ${deleteTarget?.nomorEXC || ''}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
     </div>
   );
 }

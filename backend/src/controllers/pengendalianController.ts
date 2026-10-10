@@ -316,3 +316,60 @@ export const createWaste = async (req: Request, res: Response) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+// ============ DELETE OPERATIONS ============
+export const deleteCycleCount = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await req.prisma.cycleCountItem.deleteMany({ where: { cycleCountId: id } });
+    await req.prisma.cycleCount.delete({ where: { id } });
+    res.json({ message: 'Perhitungan stok berhasil dihapus' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const deleteStockAdjustment = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await req.prisma.stockAdjustment.delete({ where: { id } });
+    res.json({ message: 'Penyesuaian stok berhasil dihapus' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const deleteException = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await req.prisma.exceptionLog.delete({ where: { id } });
+    res.json({ message: 'Data pengembalian pemasok berhasil dihapus' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const deleteWaste = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await req.prisma.waste.delete({ where: { id } });
+    res.json({ message: 'Data waste berhasil dihapus' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const resetAllPengendalianData = async (req: Request, res: Response) => {
+  try {
+    await req.prisma.$transaction(async (tx: any) => {
+      await tx.cycleCountItem.deleteMany({});
+      await tx.cycleCount.deleteMany({});
+      await tx.stockAdjustment.deleteMany({});
+      await tx.exceptionLog.deleteMany({});
+      await tx.waste.deleteMany({});
+    });
+    res.json({ message: 'Semua data pengendalian berhasil direset' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};

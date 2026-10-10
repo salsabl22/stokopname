@@ -135,3 +135,31 @@ router.put('/users/:userId/permissions', async (req, res) => {
 });
 
 export default router;
+
+// RESET ALL TRANSACTION DATA - endpoint untuk reset semua data transaksi
+router.delete('/reset-all-data', async (req, res) => {
+  try {
+    await req.prisma.$transaction(async (tx: any) => {
+      // Hapus semua data transaksi secara terurut (dari dependan ke independan)
+      await tx.packingResult.deleteMany({});
+      await tx.sOItem.deleteMany({});
+      await tx.shipment.deleteMany({});
+      await tx.salesOrder.deleteMany({});
+      await tx.returItem.deleteMany({});
+      await tx.retur.deleteMany({});
+      await tx.stockMovement.deleteMany({});
+      await tx.pOItem.deleteMany({});
+      await tx.purchaseOrder.deleteMany({});
+      await tx.cycleCountItem.deleteMany({});
+      await tx.cycleCount.deleteMany({});
+      await tx.stockAdjustment.deleteMany({});
+      await tx.exceptionLog.deleteMany({});
+      await tx.waste.deleteMany({});
+      await tx.inventory.deleteMany({});
+      await tx.activityLog.deleteMany({});
+    });
+    res.json({ message: 'Semua data transaksi berhasil direset' });
+  } catch (e: any) {
+    res.status(500).json({ message: e.message });
+  }
+});

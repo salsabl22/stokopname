@@ -251,3 +251,12 @@ export const bukaInvestigasiUlang = async (id: string) => {
 };
 export const prosesInvestigasi = submitInvestigasi;
 export const prosesPersetujuan = submitPersetujuan;
+
+export async function deleteOpname(id: string): Promise<void> {
+  const list = storage.getOpname();
+  storage.setOpname(list.filter((item) => item.id !== id));
+}
+
+export async function resetAllOpname(): Promise<void> {
+  storage.setOpname([]);
+}

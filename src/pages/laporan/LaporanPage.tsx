@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Download, FileText, Table, RefreshCcw, TrendingUp, Package, ArrowDown, ArrowUp } from 'lucide-react';
-import { fetchPersediaan } from '../../services/persediaanService';
+import { Download, FileText, Table, RefreshCcw, TrendingUp, Package, ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
+import { fetchPersediaan, resetAllInventory } from '../../services/persediaanService';
 import { fetchAllPO } from '../../services/barangMasukService';
 import { fetchAllPesananCabang } from '../../services/pesananCabangService';
 import { fetchAllRetur } from '../../services/returService';
 import { fetchStockMovements } from '../../services/stockMovementService';
 import { fetchWastes, fetchExceptions } from '../../services/pengendalianService';
 import { exportToPdf, exportToExcel } from '../../utils/exportUtils';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { ToastContainer } from '../../components/ui/Toast';
+import { useToast } from '../../utils/useToast';
 
 type TipeLaporan = 'persediaan' | 'barang_masuk' | 'barang_keluar' | 'retur' | 'aktivitas' | 'pengembalian' | 'waste';
 
@@ -209,6 +212,10 @@ export default function LaporanPage() {
   const [filterSampai, setFilterSampai] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [kpiCards, setKpiCards] = useState<{ label: string; value: number; color: string }[]>([]);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const { toasts, showToast, dismissToast } = useToast();
 
   async function loadData(tab: TipeLaporan) {
     setLoading(true);
@@ -285,8 +292,24 @@ export default function LaporanPage() {
     exportToExcel(filteredData, columns, { filename: `Laporan_${activeLabel}`, title: `Laporan ${activeLabel}` });
   };
 
+  async function handleResetAllData() {
+    setResetLoading(true);
+    try {
+      await resetAllInventory();
+      setResetConfirmOpen(false);
+      await loadData(activeTab);
+      await loadKpi();
+      showToast('success', 'Semua data transaksi berhasil direset. Dashboard dan laporan telah diperbarui.');
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal mereset data.');
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {kpiCards.map((kpi) => (
@@ -375,6 +398,14 @@ export default function LaporanPage() {
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => setResetConfirmOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 text-red-600 border border-red-200 text-xs font-medium hover:bg-red-100 transition-colors"
+            >
+              <Trash2 size={13} />
+              Reset Semua Data
+            </button>
+            <button
+              type="button"
               onClick={handleExportPDF}
               disabled={loading || filteredData.length === 0}
               className="btn-secondary flex items-center gap-1.5 text-xs disabled:opacity-50"
@@ -455,6 +486,16 @@ export default function LaporanPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title="Reset Semua Data Transaksi"
+        description="PERINGATAN: Tindakan ini akan menghapus SEMUA data pesanan, pergerakan stok, retur, waste, dan inventory secara permanen dari database. Lanjutkan?"
+        confirmLabel="Ya, Reset Semua"
+        onConfirm={handleResetAllData}
+        onCancel={() => setResetConfirmOpen(false)}
+        loading={resetLoading}
+      />
     </div>
   );
 }

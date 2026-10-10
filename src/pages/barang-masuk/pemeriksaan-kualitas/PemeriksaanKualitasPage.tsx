@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, ClipboardCheck, RefreshCcw } from 'lucide-react';
+import { Search, ClipboardCheck, RefreshCcw, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
 import QCFormModal from './QCFormModal';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import type { HasilQC, PesananPembelian } from '../../../types/barangMasuk';
 import { useMasterStatus } from '../../../hooks/useMasterStatus';
-import { fetchPOByStatus, prosesQC } from '../../../services/barangMasukService';
+import { fetchPOByStatus, prosesQC, deletePO } from '../../../services/barangMasukService';
 import { createException } from '../../../services/pengendalianService';
 
 export default function PemeriksaanKualitasPage() {
@@ -15,6 +16,8 @@ export default function PemeriksaanKualitasPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPO, setSelectedPO] = useState<PesananPembelian | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PesananPembelian | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { getLabel, getTone } = useMasterStatus('PO');
   const { toasts, showToast, dismissToast } = useToast();
@@ -77,6 +80,21 @@ export default function PemeriksaanKualitasPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deletePO(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `PO ${deleteTarget.nomorPO} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
     <div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -123,11 +141,22 @@ export default function PemeriksaanKualitasPage() {
                       <Badge tone={getTone(po.status)}>{getLabel(po.status)}</Badge>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {po.status === 'menunggu_qc' && (
-                        <button type="button" className="btn-secondary" onClick={() => setSelectedPO(po)}>
-                          Proses QC
+                      <div className="flex items-center justify-end gap-1">
+                        {po.status === 'menunggu_qc' && (
+                          <button type="button" className="btn-secondary" onClick={() => setSelectedPO(po)}>
+                            Proses QC
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(po)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -142,6 +171,16 @@ export default function PemeriksaanKualitasPage() {
         po={selectedPO}
         onClose={() => setSelectedPO(null)}
         onSubmit={handleSubmit}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus PO dari Pemeriksaan QC"
+        description={`Apakah Anda yakin ingin menghapus PO ${deleteTarget?.nomorPO}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
       />
     </div>
   );

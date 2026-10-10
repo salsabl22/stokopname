@@ -137,3 +137,33 @@ export async function tambahStokManual(
   });
   await handleResponse(approveRes);
 }
+
+export async function deleteInventoryItem(id: string): Promise<void> {
+  const res = await fetch(`${getApiBase()}/operasional/inventory/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal menghapus persediaan');
+  }
+}
+
+export async function resetAllInventory(): Promise<void> {
+  const token = getToken();
+  const unit = localStorage.getItem('wms_unit_bisnis');
+  const path = unit === 'KERIPIK_BUJANGAN' ? 'keripik-bujangan' : 'fotosnaps';
+  const apiBase = `${import.meta.env.VITE_API_URL || ''}/api/${path}`;
+  // Gunakan endpoint admin reset-all yang reset semua data transaksi termasuk inventory
+  const res = await fetch(`${apiBase.replace(`/api/${path}`, '')}/api/admin/reset-all-data`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal mereset data persediaan');
+  }
+}

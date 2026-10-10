@@ -78,3 +78,22 @@ export async function fetchStockMovements(): Promise<StockMovement[]> {
     };
   });
 }
+
+export async function deleteStockMovement(id: string): Promise<void> {
+  const unit = localStorage.getItem('wms_unit_bisnis');
+  const path = unit === 'KERIPIK_BUJANGAN' ? 'keripik-bujangan' : 'fotosnaps';
+  const apiBase = `${import.meta.env.VITE_API_URL || ''}/api/${path}`;
+  const token = localStorage.getItem('wms_token') || '';
+
+  const res = await fetch(`${apiBase}/operasional/stock-movement/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal menghapus pergerakan stok');
+  }
+}

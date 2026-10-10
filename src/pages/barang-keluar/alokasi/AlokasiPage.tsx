@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, MoveRight, RefreshCcw } from 'lucide-react';
+import { Search, MoveRight, RefreshCcw, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
 import type { PesananCabang } from '../../../types/pesananCabang';
 import { STATUS_SO_LABEL, STATUS_SO_TONE } from '../../../utils/statusSO';
-import { fetchPesananCabangByStatus, prosesAlokasi } from '../../../services/pesananCabangService';
+import { fetchPesananCabangByStatus, prosesAlokasi, deleteSalesOrder } from '../../../services/pesananCabangService';
 
 export default function AlokasiPage() {
   const [data, setData] = useState<PesananCabang[]>([]);
@@ -13,6 +14,8 @@ export default function AlokasiPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PesananCabang | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -54,6 +57,21 @@ export default function AlokasiPage() {
       }
     } finally {
       setProcessingId(null);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteSalesOrder(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `Pesanan ${deleteTarget.nomorPesanan} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus.');
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -105,14 +123,25 @@ export default function AlokasiPage() {
                       <Badge tone={STATUS_SO_TONE[p.status]}>{STATUS_SO_LABEL[p.status]}</Badge>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => handleProsesAlokasi(p)}
-                        disabled={processingId === p.id}
-                      >
-                        {processingId === p.id ? 'Memproses...' : 'Proses Alokasi'}
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={() => handleProsesAlokasi(p)}
+                          disabled={processingId === p.id}
+                        >
+                          {processingId === p.id ? 'Memproses...' : 'Proses Alokasi'}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(p)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -121,6 +150,16 @@ export default function AlokasiPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Pesanan dari Alokasi"
+        description={`Apakah Anda yakin ingin menghapus pesanan ${deleteTarget?.nomorPesanan}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
     </div>
   );
 }

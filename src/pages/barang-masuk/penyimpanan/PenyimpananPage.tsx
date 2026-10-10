@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Archive, RefreshCcw, PackageCheck } from 'lucide-react';
+import { Search, Archive, RefreshCcw, PackageCheck, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
 import PenyimpananFormModal from './PenyimpananFormModal';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import type { PesananPembelian } from '../../../types/barangMasuk';
 import { useMasterStatus } from '../../../hooks/useMasterStatus';
-import { fetchPOByStatus, simpanKeGudang, tandaiRepackSelesai } from '../../../services/barangMasukService';
+import { fetchPOByStatus, simpanKeGudang, tandaiRepackSelesai, deletePO } from '../../../services/barangMasukService';
 
 export default function PenyimpananPage() {
   const [data, setData] = useState<PesananPembelian[]>([]);
@@ -14,6 +15,8 @@ export default function PenyimpananPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPO, setSelectedPO] = useState<PesananPembelian | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PesananPembelian | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { getLabel, getTone } = useMasterStatus('PO');
 
@@ -56,6 +59,21 @@ export default function PenyimpananPage() {
     await simpanKeGudang(selectedPO.id, lokasiLabel);
     await loadData();
     showToast('success', `${selectedPO.nomorPO} berhasil disimpan dan masuk ke Persediaan.`);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deletePO(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `PO ${deleteTarget.nomorPO} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus.');
+    } finally {
+      setDeleteLoading(false);
+    }
   }
 
   return (
@@ -104,20 +122,31 @@ export default function PenyimpananPage() {
                       <Badge tone={getTone(po.status)}>{getLabel(po.status)}</Badge>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {po.status === 'perlu_repack' && (
+                      <div className="flex items-center justify-end gap-1">
+                        {po.status === 'perlu_repack' && (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => handleRepackSelesai(po)}
+                          >
+                            Tandai Repack Selesai
+                          </button>
+                        )}
+                        {po.status === 'siap_penyimpanan' && (
+                          <button type="button" className="btn-primary" onClick={() => setSelectedPO(po)}>
+                            Simpan ke Gudang
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className="btn-secondary"
-                          onClick={() => handleRepackSelesai(po)}
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(po)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                         >
-                          Tandai Repack Selesai
+                          <Trash2 size={14} />
                         </button>
-                      )}
-                      {po.status === 'siap_penyimpanan' && (
-                        <button type="button" className="btn-primary" onClick={() => setSelectedPO(po)}>
-                          Simpan ke Gudang
-                        </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -132,6 +161,16 @@ export default function PenyimpananPage() {
         po={selectedPO}
         onClose={() => setSelectedPO(null)}
         onSubmit={handleSubmitPenyimpanan}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Data Penyimpanan"
+        description={`Apakah Anda yakin ingin menghapus PO ${deleteTarget?.nomorPO}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
       />
     </div>
   );

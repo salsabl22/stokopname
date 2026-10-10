@@ -147,3 +147,14 @@ export async function prosesPemeriksaanRetur(
   await completeTaskByRef(id);
   return updated;
 }
+
+export async function deleteRetur(id: string): Promise<void> {
+  const res = await fetch(`${getApiBase()}/operasional/retur/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal menghapus retur');
+  }
+}

@@ -81,3 +81,37 @@ export async function createPerhitunganStok(data: any): Promise<any> {
   });
   return handleResponse(res);
 }
+
+// ---- DELETE OPERATIONS ----
+export async function deleteWaste(id: string): Promise<void> {
+  const res = await fetch(`${getApiBase()}/pengendalian/waste/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal menghapus data waste');
+  }
+}
+
+export async function deleteException(id: string): Promise<void> {
+  const res = await fetch(`${getApiBase()}/pengendalian/exceptions/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal menghapus data pengembalian');
+  }
+}
+
+export async function resetAllPengendalian(): Promise<void> {
+  const res = await fetch(`${getApiBase()}/pengendalian/cycle-count/reset-all`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || 'Gagal mereset data pengendalian');
+  }
+}

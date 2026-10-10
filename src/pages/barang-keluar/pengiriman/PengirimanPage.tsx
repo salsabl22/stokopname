@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Send, RefreshCcw } from 'lucide-react';
+import { Search, Send, RefreshCcw, Trash2 } from 'lucide-react';
 import Badge from '../../../components/ui/Badge';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useToast } from '../../../utils/useToast';
 import PengirimanFormModal from './PengirimanFormModal';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import type { PesananCabang } from '../../../types/pesananCabang';
 import { STATUS_SO_LABEL, STATUS_SO_TONE } from '../../../utils/statusSO';
-import { fetchPesananCabangByStatus, prosesPengiriman } from '../../../services/pesananCabangService';
+import { fetchPesananCabangByStatus, prosesPengiriman, deleteSalesOrder } from '../../../services/pesananCabangService';
 
 export default function PengirimanPage() {
   const [data, setData] = useState<PesananCabang[]>([]);
@@ -14,6 +15,8 @@ export default function PengirimanPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selected, setSelected] = useState<PesananCabang | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PesananCabang | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -51,6 +54,21 @@ export default function PengirimanPage() {
       showToast('success', `${result.nomorPesanan} berhasil dikirim. Status pengiriman tersimpan.`);
     } else {
       showToast('error', `${result.nomorPesanan} gagal dikirim. Silakan buat ulang dokumen pengiriman.`);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteSalesOrder(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadData();
+      showToast('success', `Pesanan ${deleteTarget.nomorPesanan} berhasil dihapus.`);
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menghapus.');
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -102,11 +120,22 @@ export default function PengirimanPage() {
                       <Badge tone={STATUS_SO_TONE[p.status]}>{STATUS_SO_LABEL[p.status]}</Badge>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {(p.status === 'siap_kirim' || p.status === 'gagal_kirim') && (
-                        <button type="button" className="btn-secondary" onClick={() => setSelected(p)}>
-                          {p.status === 'gagal_kirim' ? 'Buat Ulang Dokumen' : 'Buat Dokumen Pengiriman'}
+                      <div className="flex items-center justify-end gap-1">
+                        {(p.status === 'siap_kirim' || p.status === 'gagal_kirim') && (
+                          <button type="button" className="btn-secondary" onClick={() => setSelected(p)}>
+                            {p.status === 'gagal_kirim' ? 'Buat Ulang Dokumen' : 'Buat Dokumen Pengiriman'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          aria-label="Hapus"
+                          title="Hapus"
+                          onClick={() => setDeleteTarget(p)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -121,6 +150,16 @@ export default function PengirimanPage() {
         pesanan={selected}
         onClose={() => setSelected(null)}
         onSubmit={handleSubmit}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Hapus Data Pengiriman"
+        description={`Apakah Anda yakin ingin menghapus pesanan ${deleteTarget?.nomorPesanan}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
       />
     </div>
   );
